@@ -1,11 +1,10 @@
 // board.service.ts
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
 import { RedisService } from '../redis/redis.service';
 import { WebsocketGateway } from '../websocket/websocket.gateway';
-import { Tile } from './schemas/tile.schema';
+import { ScyllaService } from '../scylla/scylla.service';
+import { PixelHistory } from 'src/scylla/interfaces/scylla.interface';
 
 @Injectable()
 export class BoardService {
@@ -16,7 +15,7 @@ export class BoardService {
     private configService: ConfigService,
     private redisService: RedisService,
     private websocketGateway: WebsocketGateway,
-    @InjectModel(Tile.name) private tileModel: Model<Tile>,
+    private scyllaService: ScyllaService,
   ) {
     this.cooldownPeriod = this.configService.get(
       'COOLDOWN_PERIOD',
@@ -29,8 +28,9 @@ export class BoardService {
     return this.redisService.getFullBoard();
   }
 
-  async getTileDetails(x: number, y: number): Promise<Tile> {
-    return this.tileModel.findOne({ x, y }).sort({ timestamp: -1 }).exec();
+  async getTileDetails(x: number, y: number): Promise<PixelHistory | null> {
+    const history = await this.scyllaService.getPixelHistory(x, y, 1);
+    return history[0] || null;
   }
 
   async placeTile(
@@ -48,7 +48,7 @@ export class BoardService {
       throw new BadRequestException('Invalid color index');
     }
 
-    // 쿨다운 체크 - 동시 요청 Race Condition 방지를 위한 Redis Transaction 사용
+    // 쿨다운 체크
     const lastPlacement = await this.redisService.getLastPlacement(userId);
     const now = Date.now();
 
@@ -61,28 +61,22 @@ export class BoardService {
       );
     }
 
-    // Redis에서 타일 배치 처리
-    // MULTI를 통한 트랜잭션으로 race condition 방지
+    // Redis 트랜잭션으로 race condition 방지
     const multi = this.redisService.getClient().multi();
 
     // 1. 쿨다운 체크 및 업데이트
     multi.set(`place:lastplacement:${userId}`, now);
+    multi.expire(`place:lastplacement:${userId}`, 300); // 5분 후 만료
 
     // 2. 보드 업데이트
     const offset = x + y * this.boardSize;
     multi.bitfield('place:board', 'SET', 'u4', `#${offset * 4}`, colorIndex);
 
+    // 트랜잭션 실행
     await multi.exec();
 
-    // MongoDB에 세부 정보 저장
-    const newTile = new this.tileModel({
-      x,
-      y,
-      colorIndex,
-      userId,
-      timestamp: now,
-    });
-    await newTile.save();
+    // ScyllaDB에 픽셀 히스토리 기록
+    await this.scyllaService.recordPixelPlacement(x, y, userId, colorIndex);
 
     // WebSocket을 통해 모든 클라이언트에 업데이트 알림
     this.websocketGateway.broadcastTileUpdate({
@@ -99,8 +93,12 @@ export class BoardService {
     if (!exists) {
       // 초기 보드는 모두 하얀색(0)으로 설정
       const totalSize = this.boardSize * this.boardSize;
-      const initialBoard = Buffer.alloc(Math.ceil(totalSize / 2)); // 4비트 색상이므로 2개의 색상이 1바이트에 저장됨
+      const initialBoard = Buffer.alloc(Math.ceil(totalSize / 2));
       await this.redisService.getClient().set('place:board', initialBoard);
+
+      // 초기 보드 스냅샷 저장
+      await this.scyllaService.saveBoardSnapshot(initialBoard);
+
       console.log('Board initialized');
     }
   }

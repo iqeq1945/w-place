@@ -9,7 +9,7 @@ import {
 import { Server, Socket } from 'socket.io';
 import { Logger } from '@nestjs/common';
 
-interface TileUpdate {
+interface PixelUpdate {
   x: number;
   y: number;
   colorIndex: number;
@@ -47,8 +47,8 @@ export class WebsocketGateway
   }
 
   // 타일 업데이트 브로드캐스팅
-  broadcastTileUpdate(tileUpdate: TileUpdate) {
-    this.server.emit('tileUpdate', tileUpdate);
+  broadcastTileUpdate(pixelUpdate: PixelUpdate) {
+    this.server.emit('pixelUpdate', pixelUpdate);
   }
 
   // 현재 사용자 수 제공
