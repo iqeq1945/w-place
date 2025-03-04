@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - '3000:3000'
+    env_file:
+      - .env
+    depends_on:
+      - redis
+      - scylla
+    networks:
+      - app-network
+
+  scylla:
+    image: scylladb/scylla:latest
+    ports:
+      - '9042:9042'
+    volumes:
+      - scylla-data:/var/lib/scylla
+      - ./init-scylla.cql:/docker-entrypoint-initdb.d/init-scylla.cql
+    environment:
+      - SCYLLA_DC=datacenter1
+      - SCYLLA_RACK=rack1
+    networks:
+      - app-network
+
+  redis:
+    image: redis:alpine
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis-data:/data
+    networks:
+      - app-network
+
+volumes:
+  scylla-data:
+  redis-data:
+
+networks:
+  app-network:
+    driver: bridge

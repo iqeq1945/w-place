@@ -8,19 +8,19 @@ import {
   UseGuards,
   Req,
   Res,
-  CacheInterceptor,
   UseInterceptors,
 } from '@nestjs/common';
 import { BoardService } from './board.service';
 import { Response } from 'express';
 import { AuthGuard } from '@nestjs/passport';
+import { CacheInterceptor } from '@nestjs/cache-manager';
 
-@Controller('api/place')
+@Controller('board')
 export class BoardController {
   constructor(private readonly boardService: BoardService) {}
 
   @UseInterceptors(CacheInterceptor)
-  @Get('board')
+  @Get()
   async getFullBoard(@Res() res: Response) {
     const board = await this.boardService.getFullBoard();
 
@@ -34,14 +34,14 @@ export class BoardController {
   }
 
   // 타일 세부 정보 가져오기
-  @Get('tile')
+  @Get('pixel')
   async getTileDetails(@Query('x') x: number, @Query('y') y: number) {
     return this.boardService.getTileDetails(x, y);
   }
 
   // 타일 배치
   @UseGuards(AuthGuard('jwt'))
-  @Post('tile')
+  @Post('pixel')
   async placeTile(
     @Body() data: { x: number; y: number; colorIndex: number },
     @Req() req,

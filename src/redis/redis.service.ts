@@ -16,6 +16,18 @@ export class RedisService {
     this.boardSize = this.configService.get('BOARD_SIZE', 1000);
   }
 
+  // 특정 타일의 색상 값 가져오기
+  async getTile(x: number, y: number): Promise<number> {
+    const offset = x + y * this.boardSize;
+    const result = await this.redisClient.bitfield(
+      this.boardKey,
+      'GET',
+      'u4', // 4-bit unsigned integer
+      `#${offset * 4}`, // bit offset
+    );
+    return result[0] ?? 0; // 결과가 없으면 0 반환
+  }
+
   // 4비트 정수로 색상 저장 (Reddit 방식과 유사)
   async setTile(x: number, y: number, colorIndex: number): Promise<void> {
     const offset = x + y * this.boardSize;
@@ -47,5 +59,9 @@ export class RedisService {
 
   getClient() {
     return this.redisClient;
+  }
+
+  getBoardSize() {
+    return this.boardSize;
   }
 }

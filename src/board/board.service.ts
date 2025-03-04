@@ -1,10 +1,11 @@
 // board.service.ts
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, Inject, CACHE_MANAGER } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { RedisService } from '../redis/redis.service';
 import { WebsocketGateway } from '../websocket/websocket.gateway';
 import { ScyllaService } from '../scylla/scylla.service';
 import { PixelHistory } from 'src/scylla/interfaces/scylla.interface';
+import { Cache } from 'cache-manager';
 
 @Injectable()
 export class BoardService {
@@ -13,9 +14,10 @@ export class BoardService {
 
   constructor(
     private configService: ConfigService,
-    private redisService: RedisService,
-    private websocketGateway: WebsocketGateway,
-    private scyllaService: ScyllaService,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
+    private readonly redisService: RedisService,
+    private readonly websocketGateway: WebsocketGateway,
+    private readonly scyllaService: ScyllaService,
   ) {
     this.cooldownPeriod = this.configService.get(
       'COOLDOWN_PERIOD',
@@ -25,66 +27,88 @@ export class BoardService {
   }
 
   async getFullBoard(): Promise<Buffer> {
-    return this.redisService.getFullBoard();
+    // 캐시에서 보드 데이터 확인
+    const cachedBoard = await this.cacheManager.get<Buffer>('board');
+    if (cachedBoard) {
+      return cachedBoard;
+    }
+
+    // Redis에서 보드 데이터 가져오기
+    const board = await this.redisService.getFullBoard();
+    if (board) {
+      // 캐시에 저장
+      await this.cacheManager.set('board', board, 60 * 1000); // 1분 캐시
+      return board;
+    }
+
+    // ScyllaDB에서 가져오기
+    const scyllaBoard = await this.scyllaService.getLatestBoardSnapshot();
+    if (scyllaBoard) {
+      // Redis와 캐시에 저장
+      await this.redisService.getClient().set('place:board', scyllaBoard);
+      await this.cacheManager.set('board', scyllaBoard, 60 * 1000);
+      return scyllaBoard;
+    }
+
+    return Buffer.alloc(0); // 빈 보드 반환
   }
 
-  async getTileDetails(x: number, y: number): Promise<PixelHistory | null> {
-    const history = await this.scyllaService.getPixelHistory(x, y, 1);
-    return history[0] || null;
-  }
+  async getTileDetails(x: number, y: number) {
+    const cacheKey = `tile:${x}:${y}`;
 
-  async placeTile(
-    x: number,
-    y: number,
-    colorIndex: number,
-    userId: string,
-  ): Promise<void> {
-    // 입력값 검증
-    if (x < 0 || x >= this.boardSize || y < 0 || y >= this.boardSize) {
-      throw new BadRequestException('Invalid coordinates');
+    // 캐시에서 타일 정보 확인
+    const cachedTile = await this.cacheManager.get(cacheKey);
+    if (cachedTile) {
+      return cachedTile;
     }
 
-    if (colorIndex < 0 || colorIndex > 15) {
-      throw new BadRequestException('Invalid color index');
-    }
+    // Redis에서 픽셀 색상 확인
+    const colorIndex = await this.redisService.getTile(x, y);
 
-    // 쿨다운 체크
-    const lastPlacement = await this.redisService.getLastPlacement(userId);
-    const now = Date.now();
-
-    if (lastPlacement > 0 && now - lastPlacement < this.cooldownPeriod) {
-      const remainingTime = Math.ceil(
-        (this.cooldownPeriod - (now - lastPlacement)) / 1000,
-      );
-      throw new BadRequestException(
-        `You can place a tile in ${remainingTime} seconds`,
-      );
-    }
-
-    // Redis 트랜잭션으로 race condition 방지
-    const multi = this.redisService.getClient().multi();
-
-    // 1. 쿨다운 체크 및 업데이트
-    multi.set(`place:lastplacement:${userId}`, now);
-    multi.expire(`place:lastplacement:${userId}`, 300); // 5분 후 만료
-
-    // 2. 보드 업데이트
-    const offset = x + y * this.boardSize;
-    multi.bitfield('place:board', 'SET', 'u4', `#${offset * 4}`, colorIndex);
-
-    // 트랜잭션 실행
-    await multi.exec();
-
-    // ScyllaDB에 픽셀 히스토리 기록
-    await this.scyllaService.recordPixelPlacement(x, y, userId, colorIndex);
-
-    // WebSocket을 통해 모든 클라이언트에 업데이트 알림
-    this.websocketGateway.broadcastTileUpdate({
+    const tileInfo = {
       x,
       y,
       colorIndex,
-      timestamp: now,
-    });
+      timestamp: new Date(),
+    };
+    await this.cacheManager.set(cacheKey, tileInfo, 5 * 60 * 1000); // 5분 캐시
+    return tileInfo;
+  }
+
+  async placeTile(x: number, y: number, colorIndex: number, userId: string) {
+    try {
+      // 마지막 배치 시간 확인
+      const lastPlacement = await this.redisService.getLastPlacement(userId);
+      const now = Date.now();
+      if (now - lastPlacement < 5000) {
+        // 5초 쿨다운
+        throw new Error('Please wait before placing another tile');
+      }
+
+      // ScyllaDB에 기록
+      await this.scyllaService.recordPixelPlacement(x, y, userId, colorIndex);
+
+      // Redis 업데이트
+      await this.redisService.setTile(x, y, colorIndex);
+      await this.redisService.setLastPlacement(userId, now);
+
+      // 캐시 무효화
+      await this.cacheManager.del('board');
+      await this.cacheManager.del(`tile:${x}:${y}`);
+
+      // WebSocket을 통해 다른 클라이언트에게 업데이트 알림
+      this.websocketGateway.broadcastTileUpdate({
+        x,
+        y,
+        colorIndex,
+        timestamp: now,
+      });
+
+      return { status: 'success' };
+    } catch (error) {
+      console.error('타일 배치 중 오류:', error);
+      throw error;
+    }
   }
 
   // 초기 보드 생성 (필요한 경우)
@@ -101,5 +125,10 @@ export class BoardService {
 
       console.log('Board initialized');
     }
+  }
+
+  // 캐시 초기화 (관리자용)
+  async clearCache() {
+    await this.cacheManager.clear();
   }
 }

@@ -19,7 +19,7 @@ export class ScyllaService implements OnModuleInit, OnModuleDestroy {
 
   constructor(private configService: ConfigService) {
     const contactPoints = this.configService
-      .get<string>('SCYLLA_CONTACT_POINTS', 'localhost')
+      .get<string>('SCYLLA_CONTACT_POINTS', 'scylla')
       .split(',');
     const datacenter = this.configService.get<string>(
       'SCYLLA_DATACENTER',
@@ -32,7 +32,7 @@ export class ScyllaService implements OnModuleInit, OnModuleDestroy {
       localDataCenter: datacenter,
       keyspace,
       protocolOptions: {
-        maxVersion: 4, // Use protocol version compatible with ScyllaDB
+        maxVersion: 4,
       },
       pooling: {
         coreConnectionsPerHost: {
@@ -46,60 +46,17 @@ export class ScyllaService implements OnModuleInit, OnModuleDestroy {
   }
 
   async onModuleInit() {
-    await this.client.connect();
-    await this.setupSchema();
-    this.setupMappers();
+    try {
+      await this.client.connect();
+      this.setupMappers();
+    } catch (error) {
+      console.error('ScyllaDB 연결 중 오류:', error);
+      throw error;
+    }
   }
 
   async onModuleDestroy() {
     await this.client.shutdown();
-  }
-
-  private async setupSchema() {
-    // Create keyspace if not exists
-    await this.client.execute(`
-      CREATE KEYSPACE IF NOT EXISTS place
-      WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 3}
-      AND durable_writes = true;
-    `);
-
-    // Create tables if not exist
-    await this.client.execute(`
-      CREATE TABLE IF NOT EXISTS place.pixel_history (
-        x int,
-        y int,
-        timestamp timestamp,
-        user_id text,
-        color_index tinyint,
-        PRIMARY KEY ((x, y), timestamp)
-      ) WITH CLUSTERING ORDER BY (timestamp DESC)
-      AND compaction = {'class': 'TimeWindowCompactionStrategy', 
-                      'compaction_window_unit': 'DAYS', 
-                      'compaction_window_size': 7}
-      AND gc_grace_seconds = 86400;
-    `);
-
-    await this.client.execute(`
-      CREATE TABLE IF NOT EXISTS place.board_snapshots (
-        snapshot_id uuid,
-        timestamp timestamp,
-        board blob,
-        PRIMARY KEY (snapshot_id)
-      );
-    `);
-
-    await this.client.execute(`
-      CREATE TABLE IF NOT EXISTS place.user_stats (
-        user_id int,
-        pixels_placed counter,
-        PRIMARY KEY (user_id)
-      );
-    `);
-
-    // Create indexes
-    await this.client.execute(`
-      CREATE INDEX IF NOT EXISTS ON place.board_snapshots (timestamp);
-    `);
   }
 
   private setupMappers() {
