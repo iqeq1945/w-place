@@ -1,16 +1,17 @@
 // board.service.ts
-import { Injectable, Inject, CACHE_MANAGER } from '@nestjs/common';
+import { Injectable, Inject, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { RedisService } from '../redis/redis.service';
 import { WebsocketGateway } from '../websocket/websocket.gateway';
 import { ScyllaService } from '../scylla/scylla.service';
-import { PixelHistory } from 'src/scylla/interfaces/scylla.interface';
 import { Cache } from 'cache-manager';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
 
 @Injectable()
 export class BoardService {
   private readonly cooldownPeriod: number; // 밀리초 단위
   private readonly boardSize: number;
+  private readonly logger = new Logger(BoardService.name);
 
   constructor(
     private configService: ConfigService,
@@ -21,8 +22,8 @@ export class BoardService {
   ) {
     this.cooldownPeriod = this.configService.get(
       'COOLDOWN_PERIOD',
-      5 * 60 * 1000,
-    ); // 5분
+      158 * 1000, // 158초
+    );
     this.boardSize = this.configService.get('BOARD_SIZE', 1000);
   }
 
@@ -30,6 +31,7 @@ export class BoardService {
     // 캐시에서 보드 데이터 확인
     const cachedBoard = await this.cacheManager.get<Buffer>('board');
     if (cachedBoard) {
+      this.logger.log(`cache : ${cachedBoard}`);
       return cachedBoard;
     }
 
@@ -37,6 +39,7 @@ export class BoardService {
     const board = await this.redisService.getFullBoard();
     if (board) {
       // 캐시에 저장
+      this.logger.log(`redis : ${board}`);
       await this.cacheManager.set('board', board, 60 * 1000); // 1분 캐시
       return board;
     }
@@ -45,6 +48,8 @@ export class BoardService {
     const scyllaBoard = await this.scyllaService.getLatestBoardSnapshot();
     if (scyllaBoard) {
       // Redis와 캐시에 저장
+      this.logger.log(`cache : ${scyllaBoard}`);
+
       await this.redisService.getClient().set('place:board', scyllaBoard);
       await this.cacheManager.set('board', scyllaBoard, 60 * 1000);
       return scyllaBoard;
@@ -80,8 +85,7 @@ export class BoardService {
       // 마지막 배치 시간 확인
       const lastPlacement = await this.redisService.getLastPlacement(userId);
       const now = Date.now();
-      if (now - lastPlacement < 5000) {
-        // 5초 쿨다운
+      if (now - lastPlacement < this.cooldownPeriod) {
         throw new Error('Please wait before placing another tile');
       }
 
@@ -123,12 +127,13 @@ export class BoardService {
       // 초기 보드 스냅샷 저장
       await this.scyllaService.saveBoardSnapshot(initialBoard);
 
-      console.log('Board initialized');
+      this.logger.log('Board initialized');
     }
   }
 
   // 캐시 초기화 (관리자용)
   async clearCache() {
     await this.cacheManager.clear();
+    this.logger.log('Board Cache Clear');
   }
 }

@@ -156,7 +156,7 @@ export class ScyllaService implements OnModuleInit, OnModuleDestroy {
   // Get the most recent board snapshot
   async getLatestBoardSnapshot(): Promise<Buffer | null> {
     const result = await this.client.execute(
-      'SELECT board FROM place.board_snapshots ORDER BY timestamp DESC LIMIT 1',
+      'SELECT board FROM place.board_snapshots LIMIT 1',
     );
 
     if (result.rowLength === 0) {

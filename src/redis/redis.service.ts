@@ -42,7 +42,7 @@ export class RedisService {
 
   // 전체 보드 가져오기
   async getFullBoard(): Promise<Buffer> {
-    return this.redisClient.getBuffer(this.boardKey);
+    return await this.redisClient.getBuffer(this.boardKey);
   }
 
   // 사용자의 마지막 타일 배치 시간 관리

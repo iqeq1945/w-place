@@ -4,15 +4,28 @@ import { BoardService } from './board.service';
 import { ScyllaModule } from '../scylla/scylla.module';
 import { RedisModule } from '../redis/redis.module';
 import { WebsocketModule } from 'src/websocket/websocket.module';
+import { CacheModule } from '@nestjs/cache-manager';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 
 @Module({
   imports: [
-    ScyllaModule, // ScyllaDB 연결을 위해
-    RedisModule, // Redis 연결을 위해
+    ScyllaModule,
+    RedisModule,
     WebsocketModule,
+    CacheModule.registerAsync({
+      imports: [ConfigModule],
+      useFactory: async (configService: ConfigService) => ({
+        store: require('cache-manager-redis-store'),
+        host: configService.get('REDIS_HOST', 'localhost'),
+        port: configService.get('REDIS_PORT', 6379),
+        ttl: 60,
+        max: 1000,
+      }),
+      inject: [ConfigService],
+    }),
   ],
   controllers: [BoardController],
   providers: [BoardService],
-  exports: [BoardService], // 다른 모듈에서 BoardService를 사용할 수 있도록
+  exports: [BoardService],
 })
 export class BoardModule {}
