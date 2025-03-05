@@ -1,4 +1,4 @@
-version: '3.8'
+# version: '3.8'
 
 services:
   app:
@@ -9,22 +9,40 @@ services:
       - .env
     depends_on:
       - redis
-      - scylla
+      - init-scylla
+    networks:
+      - app-network
+
+  init-scylla:
+    image: scylladb/scylla:latest
+    entrypoint: ["cqlsh", "scylla", "-e", "SOURCE '/init-scylla.cql'"]
+
+    depends_on:
+      scylla:
+        condition: service_healthy
+    volumes:
+      - ./init-scylla.cql:/init-scylla.cql
     networks:
       - app-network
 
   scylla:
     image: scylladb/scylla:latest
+    container_name: scylla
     ports:
       - '9042:9042'
     volumes:
       - scylla-data:/var/lib/scylla
-      - ./init-scylla.cql:/docker-entrypoint-initdb.d/init-scylla.cql
     environment:
       - SCYLLA_DC=datacenter1
       - SCYLLA_RACK=rack1
     networks:
       - app-network
+    healthcheck:
+      test: ["CMD", "cqlsh", "-e", "DESCRIBE KEYSPACES"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
   redis:
     image: redis:alpine
