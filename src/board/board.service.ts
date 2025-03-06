@@ -31,7 +31,7 @@ export class BoardService {
     // 캐시에서 보드 데이터 확인
     const cachedBoard = await this.cacheManager.get<Buffer>('board');
     if (cachedBoard) {
-      this.logger.log(`cache : ${cachedBoard}`);
+      this.logger.log(`cache : ${cachedBoard.length}byte`);
       return cachedBoard;
     }
 
@@ -39,7 +39,7 @@ export class BoardService {
     const board = await this.redisService.getFullBoard();
     if (board) {
       // 캐시에 저장
-      this.logger.log(`redis : ${board}`);
+      this.logger.log(`redis : ${board.length}byte`);
       await this.cacheManager.set('board', board, 60 * 1000); // 1분 캐시
       return board;
     }
@@ -48,7 +48,7 @@ export class BoardService {
     const scyllaBoard = await this.scyllaService.getLatestBoardSnapshot();
     if (scyllaBoard) {
       // Redis와 캐시에 저장
-      this.logger.log(`cache : ${scyllaBoard}`);
+      this.logger.log(`scylla : ${scyllaBoard.length}byte`);
 
       await this.redisService.getClient().set('place:board', scyllaBoard);
       await this.cacheManager.set('board', scyllaBoard, 60 * 1000);
@@ -59,16 +59,20 @@ export class BoardService {
   }
 
   async getTileDetails(x: number, y: number) {
-    const cacheKey = `tile:${x}:${y}`;
+    const cacheKey = `${x}:${y}`;
 
     // 캐시에서 타일 정보 확인
     const cachedTile = await this.cacheManager.get(cacheKey);
     if (cachedTile) {
+      this.logger.log(`Cache hit for tile at (${x}, ${y})`); // 캐시 히트 로그
       return cachedTile;
     }
 
     // Redis에서 픽셀 색상 확인
     const colorIndex = await this.redisService.getTile(x, y);
+    this.logger.log(
+      `Fetched tile color from Redis for (${x}, ${y}): ${colorIndex}`,
+    ); // Redis에서 색상 조회 로그
 
     const tileInfo = {
       x,
@@ -77,6 +81,7 @@ export class BoardService {
       timestamp: new Date(),
     };
     await this.cacheManager.set(cacheKey, tileInfo, 5 * 60 * 1000); // 5분 캐시
+    this.logger.log(`Tile info cached for (${x}, ${y})`); // 캐시 저장 로그
     return tileInfo;
   }
 
@@ -86,11 +91,17 @@ export class BoardService {
       const lastPlacement = await this.redisService.getLastPlacement(userId);
       const now = Date.now();
       if (now - lastPlacement < this.cooldownPeriod) {
+        this.logger.warn(
+          `User ${userId} attempted to place tile too soon at (${x}, ${y})`,
+        ); // 경고 로그
         throw new Error('Please wait before placing another tile');
       }
 
       // ScyllaDB에 기록
       await this.scyllaService.recordPixelPlacement(x, y, userId, colorIndex);
+      this.logger.log(
+        `Recorded pixel placement for user ${userId} at (${x}, ${y}) with color ${colorIndex}`,
+      ); // 배치 기록 로그
 
       // Redis 업데이트
       await this.redisService.setTile(x, y, colorIndex);
@@ -98,7 +109,8 @@ export class BoardService {
 
       // 캐시 무효화
       await this.cacheManager.del('board');
-      await this.cacheManager.del(`tile:${x}:${y}`);
+      await this.cacheManager.del(`${x}:${y}`);
+      this.logger.log(`Cache invalidated for board and tile at (${x}, ${y})`); // 캐시 무효화 로그
 
       // WebSocket을 통해 다른 클라이언트에게 업데이트 알림
       this.websocketGateway.broadcastTileUpdate({
@@ -107,10 +119,11 @@ export class BoardService {
         colorIndex,
         timestamp: now,
       });
+      this.logger.log(`Broadcasted tile update for (${x}, ${y})`); // WebSocket 업데이트 로그
 
       return { status: 'success' };
     } catch (error) {
-      console.error('타일 배치 중 오류:', error);
+      this.logger.error(`Error placing tile at (${x}, ${y}): ${error.message}`); // 오류 로그
       throw error;
     }
   }
@@ -123,17 +136,25 @@ export class BoardService {
       const totalSize = this.boardSize * this.boardSize;
       const initialBoard = Buffer.alloc(Math.ceil(totalSize / 2));
       await this.redisService.getClient().set('place:board', initialBoard);
-
       // 초기 보드 스냅샷 저장
       await this.scyllaService.saveBoardSnapshot(initialBoard);
-
-      this.logger.log('Board initialized');
+      this.logger.log('Board initialized'); // 보드 초기화 로그
     }
   }
 
   // 캐시 초기화 (관리자용)
   async clearCache() {
     await this.cacheManager.clear();
-    this.logger.log('Board Cache Clear');
+    this.logger.log('Board Cache Clear'); // 캐시 초기화 로그
+  }
+
+  async test() {
+    // Redis에서 보드 데이터 가져오기
+    const board = await this.redisService.getFullBoard();
+
+    // ScyllaDB에서 가져오기
+    const scyllaBoard = await this.scyllaService.getLatestBoardSnapshot();
+    console.log(board, scyllaBoard);
+    console.log(scyllaBoard.length, scyllaBoard.byteLength);
   }
 }

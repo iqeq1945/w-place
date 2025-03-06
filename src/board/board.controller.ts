@@ -14,6 +14,8 @@ import { Response } from 'express';
 import { AuthGuard } from '@nestjs/passport';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import { Logger } from '@nestjs/common';
+import { PixelDto } from './dto/pixel.dto';
+import { BodyPixelDto } from './dto/body-pixel.dto';
 
 @Controller('board')
 export class BoardController {
@@ -41,12 +43,11 @@ export class BoardController {
 
   // 타일 세부 정보 가져오기
   @Get('pixel')
-  async getTileDetails(
-    @Query('x') x: number,
-    @Query('y') y: number,
-    @Res() res: Response,
-  ) {
-    const tileInfo = await this.boardService.getTileDetails(x, y);
+  async getTileDetails(@Query() query: PixelDto, @Res() res: Response) {
+    const tileInfo = await this.boardService.getTileDetails(
+      Number(query.x),
+      Number(query.y),
+    );
 
     // 타일 정보도 서비스의 캐시 시간과 일치
     res.setHeader(
@@ -62,7 +63,7 @@ export class BoardController {
   //@UseGuards(AuthGuard('jwt'))
   @Post('pixel')
   async placeTile(
-    @Body() data: { x: number; y: number; colorIndex: number },
+    @Body() data: BodyPixelDto,
     @CurrentUser() user,
     @Res() res: Response,
   ) {
@@ -88,5 +89,10 @@ export class BoardController {
 
     this.logger.log(`Board initialized by admin: ${user.id}`);
     return res.json({ status: 'success', message: 'Board initialized' });
+  }
+
+  @Get('test')
+  async test() {
+    await this.boardService.test();
   }
 }

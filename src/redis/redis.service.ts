@@ -13,7 +13,7 @@ export class RedisService {
       host: this.configService.get('REDIS_HOST', 'localhost'),
       port: this.configService.get('REDIS_PORT', 6379),
     });
-    this.boardSize = this.configService.get('BOARD_SIZE', 1000);
+    this.boardSize = this.configService.get('BOARD_SIZE', 10);
   }
 
   // 특정 타일의 색상 값 가져오기
@@ -23,7 +23,7 @@ export class RedisService {
       this.boardKey,
       'GET',
       'u4', // 4-bit unsigned integer
-      `#${offset * 4}`, // bit offset
+      `#${offset}`, // bit offset
     );
     return result[0] ?? 0; // 결과가 없으면 0 반환
   }
@@ -35,14 +35,15 @@ export class RedisService {
       this.boardKey,
       'SET',
       'u4', // 4-bit unsigned integer
-      `#${offset * 4}`, // bit offset
+      `#${offset}`, // bit offset
       colorIndex, // color value (0-15)
     );
   }
 
   // 전체 보드 가져오기
   async getFullBoard(): Promise<Buffer> {
-    return await this.redisClient.getBuffer(this.boardKey);
+    const board = await this.redisClient.getBuffer(this.boardKey);
+    return board;
   }
 
   // 사용자의 마지막 타일 배치 시간 관리
