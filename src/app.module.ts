@@ -5,6 +5,7 @@ import { RedisModule } from './redis/redis.module';
 import { ConfigModule } from '@nestjs/config';
 import { ScyllaModule } from './scylla/scylla.module';
 import { AppController } from './app.controller';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { AppController } from './app.controller';
     BoardModule,
     WebsocketModule,
     ScyllaModule,
+    ScheduleModule.forRoot(),
   ],
   controllers: [AppController],
 })

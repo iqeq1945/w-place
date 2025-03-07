@@ -6,6 +6,7 @@ import { WebsocketGateway } from '../websocket/websocket.gateway';
 import { ScyllaService } from '../scylla/scylla.service';
 import { Cache } from 'cache-manager';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cron } from '@nestjs/schedule'; // Cron 데코레이터 추가
 
 @Injectable()
 export class BoardService {
@@ -151,10 +152,28 @@ export class BoardService {
   async test() {
     // Redis에서 보드 데이터 가져오기
     const board = await this.redisService.getFullBoard();
-
     // ScyllaDB에서 가져오기
     const scyllaBoard = await this.scyllaService.getLatestBoardSnapshot();
+
     console.log(board, scyllaBoard);
     console.log(scyllaBoard.length, scyllaBoard.byteLength);
+  }
+
+  // 주기적으로 Redis의 place:board 값을 ScyllaDB에 저장하는 메서드
+  @Cron('*/1 * * * *') // 1분마다 실행
+  private async syncBoardToScylla() {
+    try {
+      this.logger.log('Start Syncing to ScyllaDB'); // 동기화 로그
+
+      const board = await this.redisService
+        .getClient()
+        .getBuffer('place:board');
+      if (board) {
+        await this.scyllaService.saveBoardSnapshot(board);
+        this.logger.log('Board synced to ScyllaDB'); // 동기화 로그
+      }
+    } catch (error) {
+      this.logger.error(`Error syncing board to ScyllaDB: ${error.message}`); // 오류 로그
+    }
   }
 }

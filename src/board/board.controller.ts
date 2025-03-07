@@ -60,7 +60,6 @@ export class BoardController {
   }
 
   // 타일 배치
-  //@UseGuards(AuthGuard('jwt'))
   @Post('pixel')
   async placeTile(
     @Body() data: BodyPixelDto,
