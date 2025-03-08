@@ -5,7 +5,10 @@ import { RedisModule } from './redis/redis.module';
 import { ConfigModule } from '@nestjs/config';
 import { ScyllaModule } from './scylla/scylla.module';
 import { AppController } from './app.controller';
+
+import { WakgamesModule } from './wakgames/wakgames.module';
 import { ScheduleModule } from '@nestjs/schedule';
+
 
 @Module({
   imports: [
@@ -16,6 +19,7 @@ import { ScheduleModule } from '@nestjs/schedule';
     BoardModule,
     WebsocketModule,
     ScyllaModule,
+    WakgamesModule,
     ScheduleModule.forRoot(),
   ],
   controllers: [AppController],

@@ -33,6 +33,7 @@
     "@nestjs/schedule": "^2.0.0",
     "@nestjs/websockets": "^10.0.0",
     "@types/ioredis": "^5.0.0",
+    "@wakgames/backend-sdk": "https://github.com/iqeq1945/Waktaverse-Games-GameSdk-Nodejs",
     "cache-manager": "^6.4.1",
     "cache-manager-redis-store": "^3.0.1",
     "cassandra-driver": "^4.8.0",
