@@ -8,7 +8,7 @@ import {
   Session,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -30,17 +30,25 @@ export class AuthController {
     summary: 'waktaver games oauth callback',
     description: '로그인 성공시 user 정보와 token 정보를 줌',
   })
+  @ApiQuery({
+    name: 'code',
+    type: Number,
+    description: '/auth 에서 받은 code',
+  })
+  @ApiQuery({
+    name: 'codeVerifier',
+    type: Number,
+    description: '/auth 에서 받은 verifier',
+  })
   @Get('callback')
-  async waktaCallback(@Query() query, @Res() res, @Session() session) {
+  async waktaCallback(@Query() query, @Res() res) {
     if (query.code) {
-      const user = await this.authService.waktaLogin(
+      const data = await this.authService.waktaLogin(
         query.code,
-        session.data.codeVerifier,
+        query.codeVerifier,
       );
 
-      delete session.data;
-
-      return res.json(user);
+      return res.json(data);
     } else throw new BadRequestException();
   }
 }
