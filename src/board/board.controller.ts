@@ -17,13 +17,35 @@ import { Logger } from '@nestjs/common';
 import { PixelDto } from './dto/pixel.dto';
 import { BodyPixelDto } from './dto/body-pixel.dto';
 import { JwtAuthGuard } from 'src/auth/auth.guard';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiOperation,
+  ApiQuery,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 
+@ApiTags('Board')
 @Controller('board')
 export class BoardController {
   private readonly logger = new Logger(BoardController.name);
 
   constructor(private readonly boardService: BoardService) {}
 
+  @ApiOperation({ summary: '전체 보드 데이터 가져오기' })
+  @ApiResponse({
+    status: 200,
+    description: '전체 보드 데이터 (octet-stream)',
+    content: {
+      'application/octet-stream': {
+        schema: {
+          type: 'string',
+          format: 'binary',
+        },
+      },
+    },
+  })
   @Get()
   async getFullBoard(@Res() res: Response) {
     const board = await this.boardService.getFullBoard();
@@ -43,6 +65,9 @@ export class BoardController {
   }
 
   // 타일 세부 정보 가져오기
+  @ApiOperation({ summary: '특정 픽셀 정보 가져오기' })
+  @ApiQuery({ name: 'x', type: Number, description: '픽셀 x 좌표' })
+  @ApiQuery({ name: 'y', type: Number, description: '픽셀 y 좌표' })
   @Get('pixel')
   async getTileDetails(@Query() query: PixelDto, @Res() res: Response) {
     const tileInfo = await this.boardService.getTileDetails(
@@ -59,7 +84,9 @@ export class BoardController {
 
     return res.json(tileInfo);
   }
-
+  @ApiOperation({ summary: '픽셀 배치' })
+  @ApiBody({ type: BodyPixelDto })
+  @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   @Post('pixel')
   async placeTile(
@@ -76,9 +103,8 @@ export class BoardController {
     return res.json({ status: 'success' });
   }
 
-  // 초기 보드 설정 라우터 추가
+  @ApiOperation({ summary: '보드 초기화 (관리자 전용)' })
   @Post('initialize')
-  //@UseGuards(AuthGuard('jwt')) // 관리자만 접근 가능하도록
   async initializeBoard(@CurrentUser() user, @Res() res: Response) {
     // 추후 관리자 체크 추가
 
