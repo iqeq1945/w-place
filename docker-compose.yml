@@ -15,7 +15,7 @@ services:
 
   init-scylla:
     image: scylladb/scylla:latest
-    entrypoint: ["cqlsh", "scylla", "-e", "SOURCE '/init-scylla.cql'"]
+    entrypoint: ['cqlsh', 'scylla', '-e', "SOURCE '/init-scylla.cql'"]
 
     depends_on:
       scylla:
@@ -26,7 +26,7 @@ services:
       - app-network
 
   scylla:
-    image: scylladb/scylla:latest
+    image: scylladb/scylla
     container_name: scylla
     ports:
       - '9042:9042'
@@ -38,7 +38,7 @@ services:
     networks:
       - app-network
     healthcheck:
-      test: ["CMD", "cqlsh", "-e", "DESCRIBE KEYSPACES"]
+      test: ['CMD', 'cqlsh', '-e', 'DESCRIBE KEYSPACES']
       interval: 10s
       timeout: 5s
       retries: 5

@@ -3,6 +3,6 @@ import { WakgamesService } from './wakgames.service';
 
 @Module({
   providers: [WakgamesService],
-  exports:[WakgamesService],
+  exports: [WakgamesService],
 })
 export class WakgamesModule {}

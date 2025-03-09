@@ -2,18 +2,28 @@ import { Module } from '@nestjs/common';
 import { BoardModule } from './board/board.module';
 import { WebsocketModule } from './websocket/websocket.module';
 import { RedisModule } from './redis/redis.module';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ScyllaModule } from './scylla/scylla.module';
 import { AppController } from './app.controller';
 
 import { WakgamesModule } from './wakgames/wakgames.module';
 import { ScheduleModule } from '@nestjs/schedule';
-
+import { AuthModule } from './auth/auth.module';
+import { JwtModule } from '@nestjs/jwt';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+    }),
+    JwtModule.registerAsync({
+      global: true,
+      imports: [ConfigModule],
+      useFactory: async (configService: ConfigService) => ({
+        secret: configService.get('JWT_SECRET'),
+        signOptions: { expiresIn: '8h' },
+      }),
+      inject: [ConfigService],
     }),
     RedisModule,
     BoardModule,
@@ -21,6 +31,7 @@ import { ScheduleModule } from '@nestjs/schedule';
     ScyllaModule,
     WakgamesModule,
     ScheduleModule.forRoot(),
+    AuthModule,
   ],
   controllers: [AppController],
 })

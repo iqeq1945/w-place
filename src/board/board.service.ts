@@ -25,7 +25,7 @@ export class BoardService {
       'COOLDOWN_PERIOD',
       158 * 1000, // 158초
     );
-    this.boardSize = this.configService.get('BOARD_SIZE', 1000);
+    this.boardSize = this.configService.get('BOARD_SIZE', 610);
   }
 
   async getFullBoard(): Promise<Buffer> {
@@ -135,7 +135,7 @@ export class BoardService {
     if (!exists) {
       // 초기 보드는 모두 하얀색(0)으로 설정
       const totalSize = this.boardSize * this.boardSize;
-      const initialBoard = Buffer.alloc(Math.ceil(totalSize / 2));
+      const initialBoard = Buffer.alloc(Math.ceil(totalSize));
       await this.redisService.getClient().set('place:board', initialBoard);
       // 초기 보드 스냅샷 저장
       await this.scyllaService.saveBoardSnapshot(initialBoard);

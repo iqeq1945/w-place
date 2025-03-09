@@ -13,7 +13,7 @@ export class RedisService {
       host: this.configService.get('REDIS_HOST', 'localhost'),
       port: this.configService.get('REDIS_PORT', 6379),
     });
-    this.boardSize = this.configService.get('BOARD_SIZE', 10);
+    this.boardSize = this.configService.get('BOARD_SIZE', 610);
   }
 
   // 특정 타일의 색상 값 가져오기
@@ -22,7 +22,7 @@ export class RedisService {
     const result = await this.redisClient.bitfield(
       this.boardKey,
       'GET',
-      'u4', // 4-bit unsigned integer
+      'u8', // 4-bit unsigned integer
       `#${offset}`, // bit offset
     );
     return result[0] ?? 0; // 결과가 없으면 0 반환
@@ -34,7 +34,7 @@ export class RedisService {
     await this.redisClient.bitfield(
       this.boardKey,
       'SET',
-      'u4', // 4-bit unsigned integer
+      'u8', // 4-bit unsigned integer
       `#${offset}`, // bit offset
       colorIndex, // color value (0-15)
     );

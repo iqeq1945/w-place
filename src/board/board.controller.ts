@@ -16,6 +16,7 @@ import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import { Logger } from '@nestjs/common';
 import { PixelDto } from './dto/pixel.dto';
 import { BodyPixelDto } from './dto/body-pixel.dto';
+import { JwtAuthGuard } from 'src/auth/auth.guard';
 
 @Controller('board')
 export class BoardController {
@@ -59,7 +60,7 @@ export class BoardController {
     return res.json(tileInfo);
   }
 
-  // 타일 배치
+  @UseGuards(JwtAuthGuard)
   @Post('pixel')
   async placeTile(
     @Body() data: BodyPixelDto,
@@ -86,7 +87,7 @@ export class BoardController {
     // 캐시 초기화
     await this.boardService.clearCache();
 
-    this.logger.log(`Board initialized by admin: ${user.id}`);
+    this.logger.log(`Board initialized by admin`);
     return res.json({ status: 'success', message: 'Board initialized' });
   }
 

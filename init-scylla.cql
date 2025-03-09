@@ -2,9 +2,10 @@
 CREATE KEYSPACE IF NOT EXISTS place
 WITH replication = {
     'class': 'NetworkTopologyStrategy', 
-    'datacenter1': 3
+    'datacenter1': 1
 }
 AND durable_writes = true;
+
 
 -- keyspace 선택
 USE place;
@@ -40,10 +41,3 @@ AND compaction = {
     'compaction_window_unit': 'DAYS', 
     'compaction_window_size': 7
 };
-
--- 테이블 3: user_stats (유지)
-CREATE TABLE IF NOT EXISTS place.user_stats (
-    user_id text,
-    pixels_placed counter,
-    PRIMARY KEY (user_id)
-);

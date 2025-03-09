@@ -17,12 +17,12 @@ export class WakgamesService extends WakGames {
     return this.oauth.getAuthorizeUrl();
   }
 
-  async getToken(auth) {
+  async getToken(code: string, codeVerifier: string) {
     const query = {
       grantType: 'authorization_code' as grantType,
       clientId: this.clientId,
-      code: auth.code,
-      verifier: auth.codeVerifier,
+      code: code,
+      verifier: codeVerifier,
       callbackUri: this.redirectUrl,
     };
     return await this.oauth.token(query);

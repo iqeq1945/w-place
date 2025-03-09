@@ -42,7 +42,7 @@ export class ScyllaService implements OnModuleInit, OnModuleDestroy {
       },
     });
 
-    this.boardSize = this.configService.get('BOARD_SIZE', 1000);
+    this.boardSize = this.configService.get('BOARD_SIZE', 610);
   }
 
   async onModuleInit() {
@@ -70,10 +70,6 @@ export class ScyllaService implements OnModuleInit, OnModuleDestroy {
           tables: ['board_snapshots'],
           mappings: new mapping.UnderscoreCqlToCamelCaseMappings(),
         },
-        UserStats: {
-          tables: ['user_stats'],
-          mappings: new mapping.UnderscoreCqlToCamelCaseMappings(),
-        },
       },
     });
 
@@ -96,13 +92,6 @@ export class ScyllaService implements OnModuleInit, OnModuleDestroy {
       userId,
       colorIndex,
     });
-
-    // Increment user stats counter
-    await this.client.execute(
-      'UPDATE place.user_stats SET pixels_placed = pixels_placed + 1 WHERE user_id = ?',
-      [userId],
-      { prepare: true },
-    );
   }
 
   // Batch insert multiple pixel updates (for efficiency)
@@ -119,24 +108,6 @@ export class ScyllaService implements OnModuleInit, OnModuleDestroy {
           update.colorIndex,
         ],
       };
-    });
-
-    // 타입을 명시적으로 정의
-    const userUpdates: { [key: string]: number } = {};
-
-    updates.forEach((update) => {
-      if (!userUpdates[update.userId]) {
-        userUpdates[update.userId] = 0;
-      }
-      userUpdates[update.userId]++;
-    });
-
-    Object.entries(userUpdates).forEach(([userId, count]) => {
-      queries.push({
-        query:
-          'UPDATE place.user_stats SET pixels_placed = pixels_placed + ? WHERE user_id = ?',
-        params: [count, userId],
-      });
     });
 
     await this.client.batch(queries, { prepare: true });
@@ -174,12 +145,6 @@ export class ScyllaService implements OnModuleInit, OnModuleDestroy {
   ): Promise<PixelHistory[]> {
     const result = await this.pixelHistoryMapper.find({ x, y }, { limit });
     return result.toArray();
-  }
-
-  // Get user statistics
-  async getUserStats(userId: string): Promise<UserStats | null> {
-    const result = await this.userStatsMapper.get({ userId });
-    return result;
   }
 
   // Get board snapshots for a time range
