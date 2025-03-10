@@ -143,6 +143,21 @@ export class BoardService {
     }
   }
 
+  // 랜덤 보드 생성 (필요한 경우)
+  async randomBoard(): Promise<void> {
+    const totalSize = this.boardSize * this.boardSize;
+    const randomBoard = Buffer.alloc(Math.ceil(totalSize));
+
+    for (let i = 0; i < totalSize; i++) {
+      randomBoard[i] = Math.floor(Math.random() * 32);
+    }
+
+    await this.redisService.getClient().set('place:board', randomBoard);
+    // 초기 보드 스냅샷 저장
+    await this.scyllaService.saveBoardSnapshot(randomBoard);
+    this.logger.log('Board initialized'); // 보드 초기화 로그
+  }
+
   // 캐시 초기화 (관리자용)
   async clearCache() {
     await this.cacheManager.clear();
@@ -171,6 +186,8 @@ export class BoardService {
       if (board) {
         await this.scyllaService.saveBoardSnapshot(board);
         this.logger.log('Board synced to ScyllaDB'); // 동기화 로그
+      } else {
+        this.logger.log('Board is not existed');
       }
     } catch (error) {
       this.logger.error(`Error syncing board to ScyllaDB: ${error.message}`); // 오류 로그

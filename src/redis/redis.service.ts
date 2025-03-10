@@ -25,7 +25,7 @@ export class RedisService {
       'u8', // 4-bit unsigned integer
       `#${offset}`, // bit offset
     );
-    return result[0] ?? 0; // 결과가 없으면 0 반환
+    return result[0] ?? -1; // 결과가 없으면 -1 반환
   }
 
   // 4비트 정수로 색상 저장 (Reddit 방식과 유사)

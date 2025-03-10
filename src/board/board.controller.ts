@@ -31,7 +31,7 @@ import {
 export class BoardController {
   private readonly logger = new Logger(BoardController.name);
 
-  constructor(private readonly boardService: BoardService) {}
+  constructor(private boardService: BoardService) {}
 
   @ApiOperation({ summary: '전체 보드 데이터 가져오기' })
   @ApiResponse({
@@ -115,6 +115,20 @@ export class BoardController {
 
     this.logger.log(`Board initialized by admin`);
     return res.json({ status: 'success', message: 'Board initialized' });
+  }
+
+  @ApiOperation({ summary: '보드 초기화 (관리자 전용)' })
+  @Post('random')
+  async randomBoard(@CurrentUser() user, @Res() res: Response) {
+    // 추후 관리자 체크 추가
+
+    await this.boardService.randomBoard();
+
+    // 캐시 초기화
+    await this.boardService.clearCache();
+
+    this.logger.log(`Board is Random by admin`);
+    return res.json({ status: 'success', message: 'Board Random' });
   }
 
   @Get('test')

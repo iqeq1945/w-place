@@ -20,10 +20,8 @@ export class AuthController {
     description: '반한되는 정보의 url로 이동하여 로그인 진행',
   })
   @Get()
-  async waktaOauth(@Session() session) {
-    const data = await this.authService.waktaOauth();
-    session.data = data;
-    return data;
+  async waktaOauth() {
+    return await this.authService.waktaOauth();
   }
 
   @ApiOperation({
