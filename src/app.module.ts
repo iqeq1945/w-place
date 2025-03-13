@@ -10,6 +10,7 @@ import { WakgamesModule } from './wakgames/wakgames.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { AuthModule } from './auth/auth.module';
 import { JwtModule } from '@nestjs/jwt';
+import { AdminModule } from './admin/admin.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { JwtModule } from '@nestjs/jwt';
     WakgamesModule,
     ScheduleModule.forRoot(),
     AuthModule,
+    AdminModule,
   ],
   controllers: [AppController],
 })

@@ -1,9 +1,11 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { WakgamesService } from 'src/wakgames/wakgames.service';
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private readonly wakgamesService: WakgamesService,
     private readonly jwtService: JwtService,
@@ -36,6 +38,7 @@ export class AuthService {
     const jwtPayload = this.createJwtPayload(userProfile);
     const userAccessToken = this.jwtService.sign(jwtPayload);
 
+    this.logger;
     return {
       accessToken: userAccessToken,
       user: userProfile,
