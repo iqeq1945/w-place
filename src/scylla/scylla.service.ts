@@ -25,12 +25,10 @@ export class ScyllaService implements OnModuleInit, OnModuleDestroy {
       'SCYLLA_DATACENTER',
       'datacenter1',
     );
-    const keyspace = this.configService.get<string>('SCYLLA_KEYSPACE', 'place');
 
     this.client = new Client({
       contactPoints,
       localDataCenter: datacenter,
-      keyspace,
       protocolOptions: {
         maxVersion: 4,
       },
@@ -48,6 +46,7 @@ export class ScyllaService implements OnModuleInit, OnModuleDestroy {
   async onModuleInit() {
     try {
       await this.client.connect();
+      await this.initializeKeyspaceAndTables();
       this.setupMappers();
     } catch (error) {
       console.error('ScyllaDB 연결 중 오류:', error);
@@ -57,6 +56,62 @@ export class ScyllaService implements OnModuleInit, OnModuleDestroy {
 
   async onModuleDestroy() {
     await this.client.shutdown();
+  }
+
+  private async initializeKeyspaceAndTables() {
+    const keyspace = this.configService.get<string>('SCYLLA_KEYSPACE', 'place');
+    const datacenter = this.configService.get<string>(
+      'SCYLLA_DATACENTER',
+      'datacenter1',
+    );
+
+    // Create keyspace if not exists
+    await this.client.execute(`
+      CREATE KEYSPACE IF NOT EXISTS ${keyspace}
+      WITH replication = {
+          'class': 'NetworkTopologyStrategy', 
+          '${datacenter}': 1
+      }
+      AND durable_writes = true;
+    `);
+
+    // Use the keyspace
+    await this.client.execute(`USE ${keyspace};`);
+
+    // Create tables
+    await this.client.execute(`
+      CREATE TABLE IF NOT EXISTS ${keyspace}.pixel_history (
+        x int,
+        y int,
+        timestamp timestamp,
+        user_id text,
+        color_index tinyint,
+        PRIMARY KEY ((x, y), timestamp, user_id)
+      ) WITH CLUSTERING ORDER BY (
+        timestamp DESC, 
+        user_id ASC
+      )
+      AND compaction = {
+        'class': 'TimeWindowCompactionStrategy', 
+        'compaction_window_unit': 'DAYS', 
+        'compaction_window_size': 7
+      }
+      AND gc_grace_seconds = 86400;
+    `);
+
+    await this.client.execute(`
+      CREATE TABLE IF NOT EXISTS ${keyspace}.board_snapshots (
+        timestamp timestamp,
+        snapshot_id uuid,
+        board blob,
+        PRIMARY KEY ((timestamp), snapshot_id)
+      ) WITH CLUSTERING ORDER BY (snapshot_id ASC)
+      AND compaction = {
+        'class': 'TimeWindowCompactionStrategy', 
+        'compaction_window_unit': 'DAYS', 
+        'compaction_window_size': 7
+      };
+    `);
   }
 
   private setupMappers() {

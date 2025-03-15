@@ -7,19 +7,7 @@ services:
       - '1945:1945'
     depends_on:
       - redis
-      - init-scylla
-    networks:
-      - app-network
-
-  init-scylla:
-    image: scylladb/scylla:latest
-    entrypoint: ['cqlsh', 'scylla', '-f', '/cql/init-scylla.cql']
-
-    depends_on:
-      scylla:
-        condition: service_healthy
-    volumes:
-      - ./cql/init-scylla.cql:/cql/init-scylla.cql:ro
+      - scylla
     networks:
       - app-network
 
@@ -35,15 +23,10 @@ services:
       - SCYLLA_RACK=rack1
     networks:
       - app-network
-    healthcheck:
-      test: ['CMD', 'cqlsh', '-e', 'DESCRIBE KEYSPACES']
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 20s
 
   redis:
     image: redis:alpine
+    container_name: redus
     ports:
       - '6379:6379'
     volumes:
