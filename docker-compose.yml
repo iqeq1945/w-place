@@ -19,7 +19,7 @@ services:
       scylla:
         condition: service_healthy
     volumes:
-      - ./init-scylla.cql:/init-scylla.cql
+      - ./init-scylla.cql:/init-scylla.cql:ro
     networks:
       - app-network
 
