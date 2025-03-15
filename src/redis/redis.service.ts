@@ -10,7 +10,7 @@ export class RedisService {
 
   constructor(private configService: ConfigService) {
     this.redisClient = new Redis({
-      host: this.configService.get('REDIS_HOST', 'localhost'),
+      host: this.configService.get('REDIS_HOST', 'redis'),
       port: this.configService.get('REDIS_PORT', 6379),
     });
     this.boardSize = this.configService.get('BOARD_SIZE', 610);

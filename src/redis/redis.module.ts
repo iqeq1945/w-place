@@ -11,7 +11,7 @@ import * as redisStore from 'cache-manager-redis-store';
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({
         store: redisStore,
-        host: configService.get('REDIS_HOST', 'localhost'),
+        host: configService.get('REDIS_HOST', 'redis'),
         port: configService.get('REDIS_PORT', 6379),
         ttl: 60, // 캐시 유효 시간 (초)
         max: 100, // 최대 캐시 항목 수
