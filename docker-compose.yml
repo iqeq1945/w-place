@@ -13,13 +13,13 @@ services:
 
   init-scylla:
     image: scylladb/scylla:latest
-    entrypoint: ['cqlsh', 'scylla', '-e', "SOURCE '/init-scylla.cql'"]
+    entrypoint: ['cqlsh', 'scylla', '-f', '/cql/init-scylla.cql']
 
     depends_on:
       scylla:
         condition: service_healthy
     volumes:
-      - ./init-scylla.cql:/init-scylla.cql:ro
+      - ./cql/init-scylla.cql:/cql/init-scylla.cql:ro
     networks:
       - app-network
 
