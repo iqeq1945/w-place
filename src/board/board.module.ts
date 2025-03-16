@@ -16,7 +16,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({
         store: require('cache-manager-redis-store'),
-        host: configService.get('REDIS_HOST', 'localhost'),
+        host: configService.get('REDIS_HOST', 'redis'),
         port: configService.get('REDIS_PORT', 6379),
         ttl: 60,
         max: 1000,
