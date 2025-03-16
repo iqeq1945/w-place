@@ -18,6 +18,8 @@ async function bootstrap() {
     }),
   );
 
+  app.setGlobalPrefix('api');
+
   const config = new DocumentBuilder()
     .setTitle('w-place api')
     .setDescription('The API description')
