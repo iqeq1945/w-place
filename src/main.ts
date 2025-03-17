@@ -9,7 +9,14 @@ dotenv.config();
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  app.enableCors();
+  app.enableCors({
+    origin: [
+      'http://localhost:3000',
+      'http://localhost:5173',
+      'https://wplace.waktaverse.games',
+    ],
+  });
+
   // ValidationPipe를 글로벌로 설정
   app.useGlobalPipes(
     new ValidationPipe({

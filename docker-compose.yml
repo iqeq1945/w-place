@@ -4,15 +4,12 @@ services:
   app:
     build: .
     ports:
-      - '1945:1945'
+      - '3000:3000'
     depends_on:
       - redis
       - scylla
-    environment:
-      - CLIENT_ID=wplace
-      - CALLBACK_URL=https://wplace.waktaverse.games/auth/callback
-      - JWT_SECRET=iloveisgidolsomuch
-      - JWT_REFRESH_SECRET=ilovewoowakgoodsomuch
+    env_file:
+      - .env
     networks:
       - app-network
 
