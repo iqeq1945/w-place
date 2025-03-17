@@ -8,8 +8,18 @@ services:
     depends_on:
       - redis
       - scylla
-    env_file:
-      - .env
+    environment:
+      - BOARD_SIZE=${BOARD_SIZE}
+      - CLIENT_ID=${CLIENT_ID}
+      - CALLBACK_URL=${CALLBACK_URL}
+      - SCYLLA_KEYSPACE=${SCYLLA_KEYSPACE}
+      - SCYLLA_CONTACT_POINTS=${SCYLLA_CONTACT_POINTS}
+      - SCYLLA_DATACENTER=${SCYLLA_DATACENTER}
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
+      - PORT=${PORT}
     networks:
       - app-network
 
