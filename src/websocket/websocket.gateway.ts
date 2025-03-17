@@ -19,9 +19,15 @@ interface PixelUpdate {
 
 @WebSocketGateway({
   cors: {
-    origin: '*', // 실제 프로덕션에서는 정확한 오리진 설정 필요
+    origin: [
+      'https://wplace.waktaverse.games',
+      'http://localhost:3000',
+      'http://localhost:5173',
+    ],
   },
   perMessageDeflate: true, // 메시지 압축 활성화
+  pingInterval: 25000, // ping 간격 설정 (25초)
+  pingTimeout: 10000, // ping 타임아웃 설정 (10초)
 })
 export class WebsocketGateway
   implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
