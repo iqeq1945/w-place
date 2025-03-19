@@ -16,6 +16,8 @@ export class ScyllaService implements OnModuleInit, OnModuleDestroy {
   private boardSnapshotMapper: mapping.ModelMapper<BoardSnapshot>;
   private userStatsMapper: mapping.ModelMapper<UserStats>;
   private readonly boardSize: number;
+  // 보드 ID는 고정값으로 설정함.
+  private static BOARD_ID: 'c1ca35bb-c7a6-4fba-a926-90dc787df97c';
 
   constructor(private configService: ConfigService) {
     const contactPoints = this.configService
@@ -101,10 +103,11 @@ export class ScyllaService implements OnModuleInit, OnModuleDestroy {
 
     await this.client.execute(`
       CREATE TABLE IF NOT EXISTS ${keyspace}.board_snapshots (
+        board_id    uuid,
+        snapshot_id timeuuid,
         timestamp timestamp,
-        snapshot_id uuid,
         board blob,
-        PRIMARY KEY ((timestamp), snapshot_id)
+        PRIMARY KEY (board_id, snapshot_id)
       ) WITH CLUSTERING ORDER BY (snapshot_id ASC)
       AND compaction = {
         'class': 'TimeWindowCompactionStrategy', 
