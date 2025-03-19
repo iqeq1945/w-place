@@ -173,8 +173,9 @@ export class ScyllaService implements OnModuleInit, OnModuleDestroy {
 
   // Save a snapshot of the entire board
   async saveBoardSnapshot(board: Buffer): Promise<string> {
-    const snapshotId = types.Uuid.random();
+    const snapshotId = types.TimeUuid.now();
     await this.boardSnapshotMapper.insert({
+      boarId: ScyllaService.BOARD_ID,
       snapshotId: snapshotId,
       timestamp: new Date(),
       board: board,
