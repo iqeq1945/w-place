@@ -1,17 +1,15 @@
 import { Module } from '@nestjs/common';
 import { BoardModule } from './board/board.module';
+import { WakgamesModule } from './wakgames/wakgames.module';
 import { WebsocketModule } from './websocket/websocket.module';
 import { RedisModule } from './redis/redis.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ScyllaModule } from './scylla/scylla.module';
 import { AppController } from './app.controller';
-
-import { WakgamesModule } from './wakgames/wakgames.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { AuthModule } from './auth/auth.module';
 import { JwtModule } from '@nestjs/jwt';
 import { AdminModule } from './admin/admin.module';
-
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -28,9 +26,9 @@ import { AdminModule } from './admin/admin.module';
     }),
     RedisModule,
     BoardModule,
+    WakgamesModule,
     WebsocketModule,
     ScyllaModule,
-    WakgamesModule,
     ScheduleModule.forRoot(),
     AuthModule,
     AdminModule,
