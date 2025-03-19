@@ -129,35 +129,6 @@ export class BoardService {
     }
   }
 
-  // 초기 보드 생성 (필요한 경우)
-  async initializeBoard(): Promise<void> {
-    const exists = await this.redisService.getClient().exists('place:board');
-    if (!exists) {
-      // 초기 보드는 모두 하얀색(0)으로 설정
-      const totalSize = this.boardSize * this.boardSize;
-      const initialBoard = Buffer.alloc(Math.ceil(totalSize));
-      await this.redisService.getClient().set('place:board', initialBoard);
-      // 초기 보드 스냅샷 저장
-      await this.scyllaService.saveBoardSnapshot(initialBoard);
-      this.logger.log('Board initialized'); // 보드 초기화 로그
-    }
-  }
-
-  // 랜덤 보드 생성 (필요한 경우)
-  async randomBoard(): Promise<void> {
-    const totalSize = this.boardSize * this.boardSize;
-    const randomBoard = Buffer.alloc(Math.ceil(totalSize));
-
-    for (let i = 0; i < totalSize; i++) {
-      randomBoard[i] = Math.floor(Math.random() * 32);
-    }
-
-    await this.redisService.getClient().set('place:board', randomBoard);
-    // 초기 보드 스냅샷 저장
-    await this.scyllaService.saveBoardSnapshot(randomBoard);
-    this.logger.log('Board initialized'); // 보드 초기화 로그
-  }
-
   // 캐시 초기화 (관리자용)
   async clearCache() {
     await this.cacheManager.clear();

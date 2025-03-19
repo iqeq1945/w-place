@@ -77,4 +77,9 @@ export class WebsocketGateway
 
     this.pixelUpdateQueue = []; // 전송 후 큐 초기화
   }
+
+  getUserCount() {
+    this.logger.log(`Admin Request User Count: ${this.userCount}`);
+    return this.userCount;
+  }
 }

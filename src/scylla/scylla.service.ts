@@ -3,7 +3,6 @@ import { ConfigService } from '@nestjs/config';
 import { Client, types, mapping } from 'cassandra-driver';
 import {
   BoardSnapshot,
-  UserStats,
   PixelHistory,
   PixelUpdate,
 } from './interfaces/scylla.interface';
@@ -14,10 +13,9 @@ export class ScyllaService implements OnModuleInit, OnModuleDestroy {
   private mapper: mapping.Mapper;
   private pixelHistoryMapper: mapping.ModelMapper<PixelHistory>;
   private boardSnapshotMapper: mapping.ModelMapper<BoardSnapshot>;
-  private userStatsMapper: mapping.ModelMapper<UserStats>;
   private readonly boardSize: number;
   // 보드 ID는 고정값으로 설정함.
-  private static BOARD_ID: 'c1ca35bb-c7a6-4fba-a926-90dc787df97c';
+  private static BOARD_ID = 'c1ca35bb-c7a6-4fba-a926-90dc787df97c';
 
   constructor(private configService: ConfigService) {
     const contactPoints = this.configService
@@ -83,15 +81,15 @@ export class ScyllaService implements OnModuleInit, OnModuleDestroy {
     // Create tables
     await this.client.execute(`
       CREATE TABLE IF NOT EXISTS ${keyspace}.pixel_history (
+        history_id timeuuid,
         x int,
         y int,
         timestamp timestamp,
         user_id text,
         color_index tinyint,
-        PRIMARY KEY ((x, y), timestamp, user_id)
+        PRIMARY KEY (user_id,history_id)
       ) WITH CLUSTERING ORDER BY (
-        timestamp DESC, 
-        user_id ASC
+        history_id DESC
       )
       AND compaction = {
         'class': 'TimeWindowCompactionStrategy', 
@@ -133,7 +131,6 @@ export class ScyllaService implements OnModuleInit, OnModuleDestroy {
 
     this.pixelHistoryMapper = this.mapper.forModel('PixelHistory');
     this.boardSnapshotMapper = this.mapper.forModel('BoardSnapshot');
-    this.userStatsMapper = this.mapper.forModel('UserStats');
   }
 
   // Record a pixel placement in the history
@@ -144,6 +141,7 @@ export class ScyllaService implements OnModuleInit, OnModuleDestroy {
     colorIndex: number,
   ): Promise<void> {
     await this.pixelHistoryMapper.insert({
+      historyId: types.TimeUuid.now(),
       x,
       y,
       timestamp: new Date(),
@@ -157,8 +155,9 @@ export class ScyllaService implements OnModuleInit, OnModuleDestroy {
     const queries = updates.map((update) => {
       return {
         query:
-          'INSERT INTO place.pixel_history (x, y, timestamp, user_id, color_index) VALUES (?, ?, ?, ?, ?)',
+          'INSERT INTO place.pixel_history (history_id, x, y, timestamp, user_id, color_index) VALUES (?, ?, ?, ?, ?, ?)',
         params: [
+          types.TimeUuid.now(),
           update.x,
           update.y,
           new Date(update.timestamp),
@@ -175,7 +174,7 @@ export class ScyllaService implements OnModuleInit, OnModuleDestroy {
   async saveBoardSnapshot(board: Buffer): Promise<string> {
     const snapshotId = types.TimeUuid.now();
     await this.boardSnapshotMapper.insert({
-      boarId: ScyllaService.BOARD_ID,
+      boardId: ScyllaService.BOARD_ID,
       snapshotId: snapshotId,
       timestamp: new Date(),
       board: board,
@@ -201,20 +200,14 @@ export class ScyllaService implements OnModuleInit, OnModuleDestroy {
     x: number,
     y: number,
     limit: number = 10,
+    userId?: string,
+    pageState?: number,
   ): Promise<PixelHistory[]> {
-    const result = await this.pixelHistoryMapper.find({ x, y }, { limit });
-    return result.toArray();
-  }
-
-  // Get board snapshots for a time range
-  async getBoardSnapshotsInRange(
-    startTime: Date,
-    endTime: Date,
-  ): Promise<BoardSnapshot[]> {
-    const query = {
-      timestamp: { $gte: startTime, $lte: endTime },
-    };
-    const result = await this.boardSnapshotMapper.find(query);
+    const result = await this.pixelHistoryMapper.find(
+      { x, y, userId },
+      { limit },
+      { pageState },
+    );
     return result.toArray();
   }
 
@@ -231,5 +224,21 @@ export class ScyllaService implements OnModuleInit, OnModuleDestroy {
   // Get the client for custom queries
   getClient(): Client {
     return this.client;
+  }
+
+  async getTimeLabs(
+    limit: number = 60,
+    pageState?: string,
+  ): Promise<{ boards: Buffer[]; nextPageState?: string }> {
+    const result = await this.client.execute(
+      `SELECT board FROM board_snapshots LIMIT ?`,
+      [limit],
+      { pageState },
+    );
+
+    return {
+      boards: result.rows.map((row) => row.get('board')),
+      nextPageState: result.pageState,
+    };
   }
 }
