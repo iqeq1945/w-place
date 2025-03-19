@@ -214,6 +214,16 @@ export class ScyllaService implements OnModuleInit, OnModuleDestroy {
     return result.toArray();
   }
 
+  async executeQuery(query: string): Promise<Array<unknown>> {
+    const result = await this.client.execute(query);
+
+    if (result.rowLength === 0) {
+      return [];
+    }
+
+    return result.rows;
+  }
+
   // Get the client for custom queries
   getClient(): Client {
     return this.client;
