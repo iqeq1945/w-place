@@ -9,6 +9,6 @@ export class BodyPixelDto {
 
   @IsNumber()
   @Min(0)
-  @Max(31)
+  @Max(255)
   colorIndex: number;
 }
