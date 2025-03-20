@@ -104,6 +104,18 @@ export class AdminController {
     return this.adminService.getPixelHistory(x, y, limit, userId, pageState);
   }
 
+  @ApiOperation({ summary: '픽셀 기록 개수 조회 (관리자 전용)' })
+  @Get('pixel-history-length')
+  async getPixelHistoryLength() {
+    return this.adminService.getPixelHistoryLength();
+  }
+
+  @ApiOperation({ summary: '픽셀 기록 전체 조회 (관리자 전용)' })
+  @Get('pixel-history-all')
+  async getPixelHistoryAll() {
+    return this.adminService.getPixelHistoryAll();
+  }
+
   @ApiOperation({ summary: '유저 수 조회 (관리자 전용)' })
   @Get('user-count')
   async getUserCount() {

@@ -209,6 +209,12 @@ export class ScyllaService implements OnModuleInit, OnModuleDestroy {
       { limit },
       { pageState },
     );
+
+    return result.toArray();
+  }
+
+  async getPixelHistoryAll(limit: number = 10): Promise<PixelHistory[]> {
+    const result = await this.pixelHistoryMapper.findAll({ limit });
     return result.toArray();
   }
 
@@ -237,9 +243,32 @@ export class ScyllaService implements OnModuleInit, OnModuleDestroy {
       { pageState },
     );
 
+    // 결과가 존재하는지 확인
+    if (result.rowLength === 0) {
+      return { boards: [], nextPageState: undefined }; // 결과가 없을 경우 빈 배열 반환
+    }
+
     return {
       boards: result.rows.map((row) => row.get('board')),
       nextPageState: result.pageState,
     };
+  }
+
+  async getPixelHistoryLength(): Promise<number> {
+    try {
+      const result = await this.client.execute(
+        'SELECT COUNT(*) FROM place.pixel_history',
+      );
+
+      // 결과가 존재하는지 확인
+      if (result.rowLength === 0) {
+        return 0; // 결과가 없을 경우 0 반환
+      }
+
+      return result.first().get('count');
+    } catch (error) {
+      console.error('픽셀 기록 개수 조회 중 오류:', error);
+      throw error; // 오류를 다시 던져서 호출자에게 알림
+    }
   }
 }

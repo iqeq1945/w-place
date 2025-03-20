@@ -45,6 +45,14 @@ export class AdminService {
     );
   }
 
+  async getPixelHistoryLength() {
+    return await this.scyllaService.getPixelHistoryLength();
+  }
+
+  async getPixelHistoryAll() {
+    return await this.scyllaService.getPixelHistoryAll();
+  }
+
   async getUserCount() {
     return this.websocketGateway.getUserCount();
   }
