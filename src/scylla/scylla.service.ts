@@ -87,8 +87,9 @@ export class ScyllaService implements OnModuleInit, OnModuleDestroy {
         timestamp timestamp,
         user_id text,
         color_index tinyint,
-        PRIMARY KEY (user_id,history_id)
+        PRIMARY KEY ((x, y), user_id, history_id)
       ) WITH CLUSTERING ORDER BY (
+       user_id ASC,
         history_id DESC
       )
       AND compaction = {
@@ -204,7 +205,7 @@ export class ScyllaService implements OnModuleInit, OnModuleDestroy {
     pageState?: number,
   ): Promise<PixelHistory[]> {
     const result = await this.pixelHistoryMapper.find(
-      { x, y, userId },
+      userId ? { x, y, userId } : { x, y },
       { limit },
       { pageState },
     );
