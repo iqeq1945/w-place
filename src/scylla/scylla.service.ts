@@ -1,21 +1,27 @@
-import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import {
+  Injectable,
+  OnModuleInit,
+  OnModuleDestroy,
+  Logger,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Client, types, mapping } from 'cassandra-driver';
 import {
   BoardSnapshot,
-  UserStats,
   PixelHistory,
   PixelUpdate,
 } from './interfaces/scylla.interface';
 
 @Injectable()
 export class ScyllaService implements OnModuleInit, OnModuleDestroy {
+  private readonly logger = new Logger(ScyllaService.name);
   private client: Client;
   private mapper: mapping.Mapper;
   private pixelHistoryMapper: mapping.ModelMapper<PixelHistory>;
   private boardSnapshotMapper: mapping.ModelMapper<BoardSnapshot>;
-  private userStatsMapper: mapping.ModelMapper<UserStats>;
   private readonly boardSize: number;
+  // 보드 ID는 고정값으로 설정함.
+  private static BOARD_ID = 'c1ca35bb-c7a6-4fba-a926-90dc787df97c';
 
   constructor(private configService: ConfigService) {
     const contactPoints = this.configService
@@ -46,10 +52,11 @@ export class ScyllaService implements OnModuleInit, OnModuleDestroy {
   async onModuleInit() {
     try {
       await this.client.connect();
+      this.logger.log('ScyllaDB에 연결되었습니다.');
       await this.initializeKeyspaceAndTables();
       this.setupMappers();
     } catch (error) {
-      console.error('ScyllaDB 연결 중 오류:', error);
+      this.logger.error('ScyllaDB 연결 중 오류:', error);
       throw error;
     }
   }
@@ -81,15 +88,16 @@ export class ScyllaService implements OnModuleInit, OnModuleDestroy {
     // Create tables
     await this.client.execute(`
       CREATE TABLE IF NOT EXISTS ${keyspace}.pixel_history (
+        history_id timeuuid,
         x int,
         y int,
         timestamp timestamp,
         user_id text,
         color_index tinyint,
-        PRIMARY KEY ((x, y), timestamp, user_id)
+        PRIMARY KEY ((x, y), user_id, history_id)
       ) WITH CLUSTERING ORDER BY (
-        timestamp DESC, 
-        user_id ASC
+       user_id ASC,
+        history_id DESC
       )
       AND compaction = {
         'class': 'TimeWindowCompactionStrategy', 
@@ -101,10 +109,11 @@ export class ScyllaService implements OnModuleInit, OnModuleDestroy {
 
     await this.client.execute(`
       CREATE TABLE IF NOT EXISTS ${keyspace}.board_snapshots (
+        board_id    uuid,
+        snapshot_id timeuuid,
         timestamp timestamp,
-        snapshot_id uuid,
         board blob,
-        PRIMARY KEY ((timestamp), snapshot_id)
+        PRIMARY KEY (board_id, snapshot_id)
       ) WITH CLUSTERING ORDER BY (snapshot_id ASC)
       AND compaction = {
         'class': 'TimeWindowCompactionStrategy', 
@@ -130,7 +139,6 @@ export class ScyllaService implements OnModuleInit, OnModuleDestroy {
 
     this.pixelHistoryMapper = this.mapper.forModel('PixelHistory');
     this.boardSnapshotMapper = this.mapper.forModel('BoardSnapshot');
-    this.userStatsMapper = this.mapper.forModel('UserStats');
   }
 
   // Record a pixel placement in the history
@@ -141,6 +149,7 @@ export class ScyllaService implements OnModuleInit, OnModuleDestroy {
     colorIndex: number,
   ): Promise<void> {
     await this.pixelHistoryMapper.insert({
+      historyId: types.TimeUuid.now(),
       x,
       y,
       timestamp: new Date(),
@@ -154,8 +163,9 @@ export class ScyllaService implements OnModuleInit, OnModuleDestroy {
     const queries = updates.map((update) => {
       return {
         query:
-          'INSERT INTO place.pixel_history (x, y, timestamp, user_id, color_index) VALUES (?, ?, ?, ?, ?)',
+          'INSERT INTO place.pixel_history (history_id, x, y, timestamp, user_id, color_index) VALUES (?, ?, ?, ?, ?, ?)',
         params: [
+          types.TimeUuid.now(),
           update.x,
           update.y,
           new Date(update.timestamp),
@@ -166,23 +176,27 @@ export class ScyllaService implements OnModuleInit, OnModuleDestroy {
     });
 
     await this.client.batch(queries, { prepare: true });
+    this.logger.log(`픽셀 기록 ${updates.length}개가 배치로 삽입되었습니다.`);
   }
 
   // Save a snapshot of the entire board
   async saveBoardSnapshot(board: Buffer): Promise<string> {
-    const snapshotId = types.Uuid.random();
+    const snapshotId = types.TimeUuid.now();
     await this.boardSnapshotMapper.insert({
+      boardId: ScyllaService.BOARD_ID,
       snapshotId: snapshotId,
       timestamp: new Date(),
       board: board,
     });
+    this.logger.log(`보드 스냅샷이 저장되었습니다. 스냅샷 ID: ${snapshotId}`);
     return snapshotId.toString();
   }
 
   // Get the most recent board snapshot
   async getLatestBoardSnapshot(): Promise<Buffer | null> {
     const result = await this.client.execute(
-      'SELECT board FROM place.board_snapshots LIMIT 1',
+      'SELECT board FROM place.board_snapshots WHERE board_id = ? LIMIT 1',
+      [ScyllaService.BOARD_ID],
     );
 
     if (result.rowLength === 0) {
@@ -197,25 +211,86 @@ export class ScyllaService implements OnModuleInit, OnModuleDestroy {
     x: number,
     y: number,
     limit: number = 10,
+    userId?: string,
+    pageState?: number,
   ): Promise<PixelHistory[]> {
-    const result = await this.pixelHistoryMapper.find({ x, y }, { limit });
+    const result = await this.pixelHistoryMapper.find(
+      userId ? { x, y, userId } : { x, y },
+      { limit },
+      { pageState },
+    );
+
     return result.toArray();
   }
 
-  // Get board snapshots for a time range
-  async getBoardSnapshotsInRange(
-    startTime: Date,
-    endTime: Date,
-  ): Promise<BoardSnapshot[]> {
-    const query = {
-      timestamp: { $gte: startTime, $lte: endTime },
-    };
-    const result = await this.boardSnapshotMapper.find(query);
+  async getPixelHistoryAll(limit: number = 10): Promise<PixelHistory[]> {
+    const result = await this.pixelHistoryMapper.findAll({ limit });
     return result.toArray();
+  }
+
+  async executeQuery(query: string): Promise<Array<unknown>> {
+    const result = await this.client.execute(query);
+
+    if (result.rowLength === 0) {
+      return [];
+    }
+
+    return result.rows;
   }
 
   // Get the client for custom queries
   getClient(): Client {
     return this.client;
+  }
+
+  async getSnapshotIds(): Promise<
+    {
+      snapshotId: string;
+      timestamp: string;
+    }[]
+  > {
+    const result = await this.boardSnapshotMapper.findAll({
+      fields: ['snapshot_id', 'timestamp'],
+    });
+    return result.toArray().map((snapshot) => ({
+      snapshotId: snapshot.snapshotId.toString(),
+      timestamp: snapshot.timestamp.toISOString(),
+    }));
+  }
+
+  async getBoardBySnapshotId(snapshotId: string): Promise<Buffer | null> {
+    const result = await this.boardSnapshotMapper.find({
+      boardId: ScyllaService.BOARD_ID,
+      snapshotId,
+    });
+    return result.toArray()[0].board;
+  }
+
+  async getPixelHistoryLength(): Promise<number> {
+    try {
+      const result = await this.client.execute(
+        'SELECT COUNT(*) FROM place.pixel_history',
+      );
+
+      // 결과가 존재하는지 확인
+      if (result.rowLength === 0) {
+        this.logger.warn('픽셀 기록이 없습니다.');
+        return 0; // 결과가 없을 경우 0 반환
+      }
+
+      this.logger.log(`픽셀 기록 개수: ${result.first().get('count')}`);
+      return result.first().get('count');
+    } catch (error) {
+      this.logger.error('픽셀 기록 개수 조회 중 오류:', error);
+      throw error; // 오류를 다시 던져서 호출자에게 알림
+    }
+  }
+
+  async getPixelHistoryByUserId(userId: string): Promise<PixelHistory[]> {
+    const result = await this.pixelHistoryMapper.find({
+      fields: ['x', 'y', 'timestamp', 'color_index', 'history_id', 'user_id'],
+      where: { user_id: userId },
+    });
+    return result.toArray();
   }
 }

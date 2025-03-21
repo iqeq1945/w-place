@@ -11,7 +11,6 @@ import { Cron } from '@nestjs/schedule'; // Cron 데코레이터 추가
 @Injectable()
 export class BoardService {
   private readonly cooldownPeriod: number; // 밀리초 단위
-  private readonly boardSize: number;
   private readonly logger = new Logger(BoardService.name);
 
   constructor(
@@ -23,9 +22,8 @@ export class BoardService {
   ) {
     this.cooldownPeriod = this.configService.get(
       'COOLDOWN_PERIOD',
-      158 * 1000, // 158초
+      118 * 1000, // 1분 58초
     );
-    this.boardSize = this.configService.get('BOARD_SIZE', 610);
   }
 
   async getFullBoard(): Promise<Buffer> {
@@ -127,35 +125,6 @@ export class BoardService {
       this.logger.error(`Error placing tile at (${x}, ${y}): ${error.message}`); // 오류 로그
       throw error;
     }
-  }
-
-  // 초기 보드 생성 (필요한 경우)
-  async initializeBoard(): Promise<void> {
-    const exists = await this.redisService.getClient().exists('place:board');
-    if (!exists) {
-      // 초기 보드는 모두 하얀색(0)으로 설정
-      const totalSize = this.boardSize * this.boardSize;
-      const initialBoard = Buffer.alloc(Math.ceil(totalSize));
-      await this.redisService.getClient().set('place:board', initialBoard);
-      // 초기 보드 스냅샷 저장
-      await this.scyllaService.saveBoardSnapshot(initialBoard);
-      this.logger.log('Board initialized'); // 보드 초기화 로그
-    }
-  }
-
-  // 랜덤 보드 생성 (필요한 경우)
-  async randomBoard(): Promise<void> {
-    const totalSize = this.boardSize * this.boardSize;
-    const randomBoard = Buffer.alloc(Math.ceil(totalSize));
-
-    for (let i = 0; i < totalSize; i++) {
-      randomBoard[i] = Math.floor(Math.random() * 32);
-    }
-
-    await this.redisService.getClient().set('place:board', randomBoard);
-    // 초기 보드 스냅샷 저장
-    await this.scyllaService.saveBoardSnapshot(randomBoard);
-    this.logger.log('Board initialized'); // 보드 초기화 로그
   }
 
   // 캐시 초기화 (관리자용)

@@ -1,16 +1,16 @@
 import { Module } from '@nestjs/common';
 import { BoardModule } from './board/board.module';
+import { WakgamesModule } from './wakgames/wakgames.module';
 import { WebsocketModule } from './websocket/websocket.module';
 import { RedisModule } from './redis/redis.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ScyllaModule } from './scylla/scylla.module';
 import { AppController } from './app.controller';
-
-import { WakgamesModule } from './wakgames/wakgames.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { AuthModule } from './auth/auth.module';
 import { JwtModule } from '@nestjs/jwt';
-
+import { AdminModule } from './admin/admin.module';
+import { CacheModule } from '@nestjs/cache-manager';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -25,13 +25,23 @@ import { JwtModule } from '@nestjs/jwt';
       }),
       inject: [ConfigService],
     }),
+    CacheModule.registerAsync({
+      isGlobal: true,
+      imports: [ConfigModule],
+      useFactory: async (configService: ConfigService) => ({
+        host: configService.get('REDIS_HOST', 'redis'),
+        port: configService.get('REDIS_PORT', 6379),
+      }),
+      inject: [ConfigService],
+    }),
     RedisModule,
     BoardModule,
+    WakgamesModule,
     WebsocketModule,
     ScyllaModule,
-    WakgamesModule,
     ScheduleModule.forRoot(),
     AuthModule,
+    AdminModule,
   ],
   controllers: [AppController],
 })

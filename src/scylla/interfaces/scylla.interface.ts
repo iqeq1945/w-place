@@ -17,7 +17,8 @@ export interface PixelHistory {
 }
 
 export interface BoardSnapshot {
-  snapshotId: types.Uuid;
+  boardId: types.Uuid;
+  snapshotId: types.TimeUuid;
   timestamp: Date;
   board: Buffer;
 }
