@@ -1,5 +1,4 @@
-import { CACHE_MANAGER } from '@nestjs/cache-manager';
-import { Inject, Logger, Injectable } from '@nestjs/common';
+import { Logger, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { BoardService } from 'src/board/board.service';
 import { RedisService } from 'src/redis/redis.service';
@@ -92,7 +91,6 @@ export class AdminService {
   }
 
   async clearCache() {
-    await this.redisService.getClient().del('place:board');
-    this.logger.log('Board cache cleared'); // 캐시 초기화 로그
+    await this.boardService.clearCache();
   }
 }
