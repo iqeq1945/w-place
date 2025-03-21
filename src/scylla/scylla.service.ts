@@ -1,4 +1,9 @@
-import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import {
+  Injectable,
+  OnModuleInit,
+  OnModuleDestroy,
+  Logger,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Client, types, mapping } from 'cassandra-driver';
 import {
@@ -9,6 +14,7 @@ import {
 
 @Injectable()
 export class ScyllaService implements OnModuleInit, OnModuleDestroy {
+  private readonly logger = new Logger(ScyllaService.name);
   private client: Client;
   private mapper: mapping.Mapper;
   private pixelHistoryMapper: mapping.ModelMapper<PixelHistory>;
@@ -46,10 +52,11 @@ export class ScyllaService implements OnModuleInit, OnModuleDestroy {
   async onModuleInit() {
     try {
       await this.client.connect();
+      this.logger.log('ScyllaDB에 연결되었습니다.');
       await this.initializeKeyspaceAndTables();
       this.setupMappers();
     } catch (error) {
-      console.error('ScyllaDB 연결 중 오류:', error);
+      this.logger.error('ScyllaDB 연결 중 오류:', error);
       throw error;
     }
   }
@@ -169,6 +176,7 @@ export class ScyllaService implements OnModuleInit, OnModuleDestroy {
     });
 
     await this.client.batch(queries, { prepare: true });
+    this.logger.log(`픽셀 기록 ${updates.length}개가 배치로 삽입되었습니다.`);
   }
 
   // Save a snapshot of the entire board
@@ -180,13 +188,15 @@ export class ScyllaService implements OnModuleInit, OnModuleDestroy {
       timestamp: new Date(),
       board: board,
     });
+    this.logger.log(`보드 스냅샷이 저장되었습니다. 스냅샷 ID: ${snapshotId}`);
     return snapshotId.toString();
   }
 
   // Get the most recent board snapshot
   async getLatestBoardSnapshot(): Promise<Buffer | null> {
     const result = await this.client.execute(
-      'SELECT board FROM place.board_snapshots LIMIT 1',
+      'SELECT board FROM place.board_snapshots WHERE board_id = ? LIMIT 1',
+      [ScyllaService.BOARD_ID],
     );
 
     if (result.rowLength === 0) {
@@ -233,25 +243,27 @@ export class ScyllaService implements OnModuleInit, OnModuleDestroy {
     return this.client;
   }
 
-  async getTimeLabs(
-    limit: number = 60,
-    pageState?: string,
-  ): Promise<{ boards: Buffer[]; nextPageState?: string }> {
-    const result = await this.client.execute(
-      `SELECT board FROM board_snapshots LIMIT ?`,
-      [limit],
-      { pageState },
-    );
+  async getSnapshotIds(): Promise<
+    {
+      snapshotId: string;
+      timestamp: string;
+    }[]
+  > {
+    const result = await this.boardSnapshotMapper.findAll({
+      fields: ['snapshot_id', 'timestamp'],
+    });
+    return result.toArray().map((snapshot) => ({
+      snapshotId: snapshot.snapshotId.toString(),
+      timestamp: snapshot.timestamp.toISOString(),
+    }));
+  }
 
-    // 결과가 존재하는지 확인
-    if (result.rowLength === 0) {
-      return { boards: [], nextPageState: undefined }; // 결과가 없을 경우 빈 배열 반환
-    }
-
-    return {
-      boards: result.rows.map((row) => row.get('board')),
-      nextPageState: result.pageState,
-    };
+  async getBoardBySnapshotId(snapshotId: string): Promise<Buffer | null> {
+    const result = await this.boardSnapshotMapper.find({
+      boardId: ScyllaService.BOARD_ID,
+      snapshotId,
+    });
+    return result.toArray()[0].board;
   }
 
   async getPixelHistoryLength(): Promise<number> {
@@ -262,13 +274,23 @@ export class ScyllaService implements OnModuleInit, OnModuleDestroy {
 
       // 결과가 존재하는지 확인
       if (result.rowLength === 0) {
+        this.logger.warn('픽셀 기록이 없습니다.');
         return 0; // 결과가 없을 경우 0 반환
       }
 
+      this.logger.log(`픽셀 기록 개수: ${result.first().get('count')}`);
       return result.first().get('count');
     } catch (error) {
-      console.error('픽셀 기록 개수 조회 중 오류:', error);
+      this.logger.error('픽셀 기록 개수 조회 중 오류:', error);
       throw error; // 오류를 다시 던져서 호출자에게 알림
     }
+  }
+
+  async getPixelHistoryByUserId(userId: string): Promise<PixelHistory[]> {
+    const result = await this.pixelHistoryMapper.find({
+      fields: ['x', 'y', 'timestamp', 'color_index', 'history_id', 'user_id'],
+      where: { user_id: userId },
+    });
+    return result.toArray();
   }
 }

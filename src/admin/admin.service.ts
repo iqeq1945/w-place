@@ -24,8 +24,12 @@ export class AdminService {
     return await this.boardService.getFullBoard();
   }
 
-  async getTimeLabs(limit: number = 60, pageState?: string) {
-    return await this.scyllaService.getTimeLabs(limit, pageState);
+  async getSnapshotIds() {
+    return await this.scyllaService.getSnapshotIds();
+  }
+
+  async getBoardBySnapshotId(snapshotId: string) {
+    return await this.scyllaService.getBoardBySnapshotId(snapshotId);
   }
 
   async getPixelHistory(

@@ -4,6 +4,7 @@ import {
   DefaultValuePipe,
   Get,
   Inject,
+  Param,
   ParseIntPipe,
   Post,
   Query,
@@ -15,7 +16,7 @@ import { AdminRepository } from './admin.repository';
 import { AdminService } from './admin.service';
 import { Response } from 'express';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
-import { ApiOperation, ApiQuery } from '@nestjs/swagger';
+import { ApiOperation, ApiParam, ApiQuery } from '@nestjs/swagger';
 
 @Controller('admin')
 export class AdminController {
@@ -31,7 +32,7 @@ export class AdminController {
     return this.adminRepository.executeQuery(body.query);
   }
 
-  @ApiOperation({ summary: '보드 조회 (관리자 전용)' })
+  @ApiOperation({ summary: '최근 보드 조회 (관리자 전용)' })
   @Get('board')
   async getBoard(@Res() res: Response) {
     const board = await this.adminService.getBoard();
@@ -39,30 +40,25 @@ export class AdminController {
     res.send(board);
   }
 
-  @ApiOperation({ summary: '타임랩스 조회 (관리자 전용)' })
-  @ApiQuery({
-    name: 'limit',
-    type: Number,
-    description: '조회할 타임랩스의 개수',
-  })
-  @ApiQuery({
-    name: 'pageState',
+  @ApiOperation({ summary: '특정 보드 조회 (관리자 전용)' })
+  @ApiParam({
+    name: 'id',
     type: String,
-    description: '페이지 상태',
-    required: false,
+    description: '스냅샷 ID',
   })
-  @Get('time-labs')
-  async getTimeLabs(
-    @Res() res: Response,
-    @Query('limit', new DefaultValuePipe(60), ParseIntPipe) limit: number = 60,
-    @Query('pageState') pageState?: string,
-  ) {
-    const timeLabs = await this.adminService.getTimeLabs(limit, pageState);
+  @Get('board/:id')
+  async getBoardById(@Param('id') id: string, @Res() res: Response) {
+    const board = await this.adminService.getBoardBySnapshotId(id);
     res.type('application/octet-stream');
-    res.send({
-      boards: timeLabs.boards,
-      nextPageState: timeLabs.nextPageState,
-    });
+    res.send(board);
+  }
+
+  @ApiOperation({ summary: '스냅샷 ID 조회 (관리자 전용)' })
+  @Get('snapshot-ids')
+  async getSnapshotIds(@Res() res: Response) {
+    const snapshotIds = await this.adminService.getSnapshotIds();
+    res.type('application/json');
+    res.send(snapshotIds);
   }
 
   @ApiOperation({ summary: '픽셀 히스토리 조회 (관리자 전용)' })
