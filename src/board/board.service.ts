@@ -22,7 +22,7 @@ export class BoardService {
   ) {
     this.cooldownPeriod = this.configService.get(
       'COOLDOWN_PERIOD',
-      118 * 1000, // 158초
+      118 * 1000, // 1분 58초
     );
   }
 
