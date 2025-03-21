@@ -11,7 +11,6 @@ import { Cron } from '@nestjs/schedule'; // Cron 데코레이터 추가
 @Injectable()
 export class BoardService {
   private readonly cooldownPeriod: number; // 밀리초 단위
-  private readonly boardSize: number;
   private readonly logger = new Logger(BoardService.name);
 
   constructor(
@@ -23,9 +22,8 @@ export class BoardService {
   ) {
     this.cooldownPeriod = this.configService.get(
       'COOLDOWN_PERIOD',
-      158 * 1000, // 158초
+      118 * 1000, // 158초
     );
-    this.boardSize = this.configService.get('BOARD_SIZE', 610);
   }
 
   async getFullBoard(): Promise<Buffer> {
