@@ -118,6 +118,12 @@ export class AdminController {
     return this.adminService.getUserCount();
   }
 
+  @ApiOperation({ summary: '최근 스냅샷 개수 조회 (관리자 전용)' })
+  @Get('snapshot-count')
+  async getSnapshotCount() {
+    return this.adminService.getSnapshotCount();
+  }
+
   @ApiOperation({ summary: '보드 크기 조회 (관리자 전용)' })
   @Get('board-size')
   async getBoardSize() {

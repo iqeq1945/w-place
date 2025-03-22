@@ -97,4 +97,8 @@ export class AdminService {
   async clearCache() {
     await this.boardService.clearCache();
   }
+
+  async getSnapshotCount(): Promise<number> {
+    return await this.scyllaService.getSnapshotCount();
+  }
 }

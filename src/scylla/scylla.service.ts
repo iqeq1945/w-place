@@ -293,4 +293,22 @@ export class ScyllaService implements OnModuleInit, OnModuleDestroy {
     });
     return result.toArray();
   }
+
+  async getSnapshotCount(): Promise<number> {
+    try {
+      const result = await this.client.execute(
+        'SELECT COUNT(*) FROM place.board_snapshots',
+      );
+
+      // 결과가 존재하는지 확인
+      if (result.rowLength === 0) {
+        return 0; // 결과가 없을 경우 0 반환
+      }
+
+      return result.first().get('count');
+    } catch (error) {
+      console.error('스냅샷 개수 조회 중 오류:', error);
+      throw error;
+    }
+  }
 }
