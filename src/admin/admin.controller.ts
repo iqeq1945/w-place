@@ -130,7 +130,7 @@ export class AdminController {
     return this.adminService.getBoardSize();
   }
 
-  @ApiOperation({ summary: '보드 초기화 (관리자 전용)' })
+  @ApiOperation({ summary: '보드 초기 구동 (관리자 전용)' })
   @Post('initialize')
   async initializeBoard(@CurrentUser() user, @Res() res: Response) {
     // 추후 관리자 체크 추가
@@ -144,7 +144,21 @@ export class AdminController {
     return res.json({ status: 'success', message: 'Board initialized' });
   }
 
-  @ApiOperation({ summary: '보드 초기화 (관리자 전용)' })
+  @ApiOperation({ summary: '보드 상태 초기화 (관리자 전용)' })
+  @Post('reset')
+  async resetBoard(@CurrentUser() user, @Res() res: Response) {
+    // 추후 관리자 체크 추가
+
+    await this.adminService.resetBoard();
+
+    // 캐시 초기화
+    await this.adminService.clearCache();
+
+    this.logger.log(`Board is Reset by admin`);
+    return res.json({ status: 'success', message: 'Board Reset' });
+  }
+
+  @ApiOperation({ summary: '보드 랜덤 초기화 (관리자 전용)' })
   @Post('random')
   async randomBoard(@CurrentUser() user, @Res() res: Response) {
     // 추후 관리자 체크 추가

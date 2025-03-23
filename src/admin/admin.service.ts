@@ -78,6 +78,17 @@ export class AdminService {
     }
   }
 
+  // 보드 상태로 초기로 복구합니다.
+  async resetBoard(): Promise<void> {
+    // 초기 보드는 모두 하얀색(0)으로 설정
+    const totalSize = this.boardSize * this.boardSize;
+    const initialBoard = Buffer.alloc(Math.ceil(totalSize));
+    await this.redisService.getClient().set('place:board', initialBoard);
+    // 초기 보드 스냅샷 저장
+    await this.scyllaService.saveBoardSnapshot(initialBoard);
+    this.logger.log('Board reset'); // 보드 초기화 로그
+  }
+
   // 랜덤 보드 생성 (필요한 경우)
   async randomBoard(): Promise<void> {
     const totalSize = this.boardSize * this.boardSize;
