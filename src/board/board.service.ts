@@ -10,7 +10,7 @@ import { Cron } from '@nestjs/schedule'; // Cron 데코레이터 추가
 
 @Injectable()
 export class BoardService {
-  private readonly cooldownPeriod: number; // 밀리초 단위
+  private cooldownPeriod: number; // 밀리초 단위
   private readonly logger = new Logger(BoardService.name);
 
   constructor(
@@ -22,7 +22,7 @@ export class BoardService {
   ) {
     this.cooldownPeriod = this.configService.get(
       'COOLDOWN_PERIOD',
-      118 * 1000, // 1분 58초
+      118, // 1분 58초
     );
   }
 
@@ -89,7 +89,7 @@ export class BoardService {
       // 마지막 배치 시간 확인
       const lastPlacement = await this.redisService.getLastPlacement(userId);
       const now = Date.now();
-      if (now - lastPlacement < this.cooldownPeriod) {
+      if (now - lastPlacement < this.cooldownPeriod * 1000) {
         this.logger.warn(
           `User ${userId} attempted to place tile too soon at (${x}, ${y})`,
         ); // 경고 로그
@@ -104,7 +104,11 @@ export class BoardService {
 
       // Redis 업데이트
       await this.redisService.setTile(x, y, colorIndex);
-      await this.redisService.setLastPlacement(userId, now);
+      await this.redisService.setLastPlacement(
+        userId,
+        now,
+        this.cooldownPeriod,
+      );
 
       // 캐시 무효화
       await this.cacheManager.del('board');
@@ -125,6 +129,14 @@ export class BoardService {
       this.logger.error(`Error placing tile at (${x}, ${y}): ${error.message}`); // 오류 로그
       throw error;
     }
+  }
+
+  async setCooldownPeriod(cooldownPeriod: number): Promise<void> {
+    this.cooldownPeriod = cooldownPeriod;
+  }
+
+  getCooldownPeriod(): number {
+    return this.cooldownPeriod;
   }
 
   // 캐시 초기화 (관리자용)

@@ -112,4 +112,8 @@ export class AdminService {
   async getSnapshotCount(): Promise<number> {
     return await this.scyllaService.getSnapshotCount();
   }
+
+  async setCooldownPeriod(cooldownPeriod: number): Promise<void> {
+    await this.boardService.setCooldownPeriod(cooldownPeriod);
+  }
 }

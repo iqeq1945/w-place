@@ -21,6 +21,7 @@ services:
       - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
       - PORT=${PORT}
       - COOLDOWN_PERIOD=${COOLDOWN_PERIOD}
+      - API_KEY=${API_KEY}
     networks:
       - app-network
 

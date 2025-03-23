@@ -47,10 +47,13 @@ export class RedisService {
   }
 
   // 사용자의 마지막 타일 배치 시간 관리
-  async setLastPlacement(userId: string, timestamp: number): Promise<void> {
+  async setLastPlacement(
+    userId: string,
+    timestamp: number,
+    cooldown: number,
+  ): Promise<void> {
     await this.redisClient.set(`place:lastplacement:${userId}`, timestamp);
-    // 1분 58초 후 자동 만료 (선택적)
-    await this.redisClient.expire(`place:lastplacement:${userId}`, 118);
+    await this.redisClient.expire(`place:lastplacement:${userId}`, cooldown);
   }
 
   async getLastPlacement(userId: string): Promise<number> {

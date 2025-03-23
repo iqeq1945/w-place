@@ -6,10 +6,10 @@ import { AdminService } from './admin.service';
 import { BoardModule } from 'src/board/board.module';
 import { AdminController } from './admin.controller';
 import { AdminRepository } from './admin.repository';
-
+import { ApiKeyGuard } from 'src/common/api-key.guard';
 @Module({
   imports: [BoardModule, ScyllaModule, RedisModule, WebsocketModule],
   controllers: [AdminController],
-  providers: [AdminService, AdminRepository],
+  providers: [AdminService, AdminRepository, ApiKeyGuard],
 })
 export class AdminModule {}

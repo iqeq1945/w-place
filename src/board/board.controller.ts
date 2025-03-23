@@ -100,7 +100,10 @@ export class BoardController {
     // POST 요청은 캐시하지 않음
     res.setHeader('Cache-Control', 'no-store');
 
-    return res.json({ status: 'success' });
+    return res.json({
+      status: 'success',
+      cooldown: this.boardService.getCooldownPeriod(),
+    });
   }
 
   @Get('test')

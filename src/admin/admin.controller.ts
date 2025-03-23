@@ -9,6 +9,7 @@ import {
   Post,
   Query,
   Res,
+  UseGuards,
 } from '@nestjs/common';
 import { Logger } from '@nestjs/common';
 import { QueryBodyDto } from './dto/query-body.dto';
@@ -16,9 +17,11 @@ import { AdminRepository } from './admin.repository';
 import { AdminService } from './admin.service';
 import { Response } from 'express';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
-import { ApiOperation, ApiParam, ApiQuery } from '@nestjs/swagger';
+import { ApiBody, ApiOperation, ApiParam, ApiQuery } from '@nestjs/swagger';
+import { ApiKeyGuard } from 'src/common/api-key.guard';
 
 @Controller('admin')
+@UseGuards(ApiKeyGuard)
 export class AdminController {
   private readonly logger = new Logger(AdminController.name);
   constructor(
@@ -170,5 +173,23 @@ export class AdminController {
 
     this.logger.log(`Board is Random by admin`);
     return res.json({ status: 'success', message: 'Board Random' });
+  }
+
+  @ApiOperation({ summary: '쿨다운 기간 설정 (관리자 전용)' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        cooldownPeriod: { type: 'number' },
+      },
+    },
+  })
+  @Post('cooldown')
+  async setCooldownPeriod(@Body('cooldown') cooldown: number) {
+    await this.adminService.setCooldownPeriod(cooldown);
+    return {
+      status: 'success',
+      message: `Cooldown Period is set to ${cooldown}`,
+    };
   }
 }
