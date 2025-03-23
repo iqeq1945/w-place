@@ -20,6 +20,7 @@ services:
       - JWT_SECRET=${JWT_SECRET}
       - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
       - PORT=${PORT}
+      - COOLDOWN_PERIOD=${COOLDOWN_PERIOD}
     networks:
       - app-network
 
