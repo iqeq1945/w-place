@@ -35,7 +35,7 @@ export class AdminService {
   async getPixelHistory(
     x: number,
     y: number,
-    limit: number = 10,
+    limit: number = 100,
     userId?: string,
     pageState?: number,
   ) {
@@ -115,5 +115,17 @@ export class AdminService {
 
   async setCooldownPeriod(cooldownPeriod: number): Promise<void> {
     await this.boardService.setCooldownPeriod(cooldownPeriod);
+  }
+
+  async setBan(userId: string) {
+    return await this.redisService.setBanUser(userId);
+  }
+
+  async getBanUserAll() {
+    return await this.redisService.getBanUserAll();
+  }
+
+  async deleteBanUser(userId: string) {
+    return await this.redisService.deleteBanUser(userId);
   }
 }

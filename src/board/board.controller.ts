@@ -6,12 +6,10 @@ import {
   Body,
   Query,
   UseGuards,
-  Req,
   Res,
 } from '@nestjs/common';
 import { BoardService } from './board.service';
 import { Response } from 'express';
-import { AuthGuard } from '@nestjs/passport';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import { Logger } from '@nestjs/common';
 import { PixelDto } from './dto/pixel.dto';

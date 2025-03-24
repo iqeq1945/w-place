@@ -1,6 +1,7 @@
 import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { WakgamesService } from 'src/wakgames/wakgames.service';
+import { RedisService } from 'src/redis/redis.service';
 
 @Injectable()
 export class AuthService {
@@ -9,6 +10,7 @@ export class AuthService {
   constructor(
     private readonly wakgamesService: WakgamesService,
     private readonly jwtService: JwtService,
+    private readonly redisService: RedisService,
   ) {}
 
   async waktaOauth() {
@@ -35,10 +37,11 @@ export class AuthService {
 
     const userProfile = profileResponse.data;
 
+    await this.checkBanUser(userProfile.id);
+
     const jwtPayload = this.createJwtPayload(userProfile);
     const userAccessToken = this.jwtService.sign(jwtPayload);
 
-    this.logger;
     return {
       accessToken: userAccessToken,
       user: userProfile,
@@ -53,5 +56,12 @@ export class AuthService {
     };
 
     return payload;
+  }
+
+  async checkBanUser(userId: string): Promise<void> {
+    const ban = await this.redisService.getBanUser(userId);
+    if (ban) {
+      throw new UnauthorizedException('블랙리스트에 등록된 유저입니다.');
+    }
   }
 }

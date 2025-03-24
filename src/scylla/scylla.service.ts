@@ -210,7 +210,7 @@ export class ScyllaService implements OnModuleInit, OnModuleDestroy {
   async getPixelHistory(
     x: number,
     y: number,
-    limit: number = 10,
+    limit: number = 100,
     userId?: string,
     pageState?: number,
   ): Promise<PixelHistory[]> {
@@ -223,7 +223,7 @@ export class ScyllaService implements OnModuleInit, OnModuleDestroy {
     return result.toArray();
   }
 
-  async getPixelHistoryAll(limit: number = 10): Promise<PixelHistory[]> {
+  async getPixelHistoryAll(limit: number = 100): Promise<PixelHistory[]> {
     const result = await this.pixelHistoryMapper.findAll({ limit });
     return result.toArray();
   }

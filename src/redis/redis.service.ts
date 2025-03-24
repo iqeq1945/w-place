@@ -22,21 +22,21 @@ export class RedisService {
     const result = await this.redisClient.bitfield(
       this.boardKey,
       'GET',
-      'u8', // 4-bit unsigned integer
+      'u8', // 8-bit unsigned integer
       `#${offset}`, // bit offset
     );
     return result[0] ?? -1; // 결과가 없으면 -1 반환
   }
 
-  // 4비트 정수로 색상 저장 (Reddit 방식과 유사)
+  // 8비트 정수로 색상 저장 (0-255 범위)
   async setTile(x: number, y: number, colorIndex: number): Promise<void> {
     const offset = x + y * this.boardSize;
     await this.redisClient.bitfield(
       this.boardKey,
       'SET',
-      'u8', // 4-bit unsigned integer
+      'u8', // 8-bit unsigned integer
       `#${offset}`, // bit offset
-      colorIndex, // color value (0-15)
+      colorIndex, // color value (0-255)
     );
   }
 
@@ -56,16 +56,41 @@ export class RedisService {
     await this.redisClient.expire(`place:lastplacement:${userId}`, cooldown);
   }
 
+  // 사용자의 마지막 타일 배치 시간 가져오기
   async getLastPlacement(userId: string): Promise<number> {
     const result = await this.redisClient.get(`place:lastplacement:${userId}`);
     return result ? parseInt(result, 10) : 0;
   }
 
+  // Redis 클라이언트 반환
   getClient() {
     return this.redisClient;
   }
 
+  // 보드 크기 반환
   getBoardSize() {
     return this.boardSize;
+  }
+
+  // 사용자 차단 설정
+  async setBanUser(userId: string): Promise<string> {
+    return await this.redisClient.set(`ban:${userId}`, 'true');
+  }
+
+  // 사용자 차단 여부 확인
+  async getBanUser(userId: string): Promise<boolean> {
+    const result = await this.redisClient.get(`ban:${userId}`);
+    return result === 'true';
+  }
+
+  // 모든 차단된 사용자 목록 가져오기
+  async getBanUserAll(): Promise<string[]> {
+    return await this.redisClient
+      .keys('ban:*')
+      .then((keys) => keys.map((key) => key.replace('ban:', '')));
+  }
+
+  async deleteBanUser(userId: string): Promise<boolean> {
+    return (await this.redisClient.del(`ban:${userId}`)) === 1;
   }
 }

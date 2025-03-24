@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   DefaultValuePipe,
+  Delete,
   Get,
   Inject,
   Param,
@@ -96,7 +97,8 @@ export class AdminController {
   async getPixelHistory(
     @Query('x', ParseIntPipe) x: number,
     @Query('y', ParseIntPipe) y: number,
-    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number = 10,
+    @Query('limit', new DefaultValuePipe(100), ParseIntPipe)
+    limit: number = 100,
     @Query('userId') userId?: string,
     @Query('pageState') pageState?: number,
   ) {
@@ -191,5 +193,31 @@ export class AdminController {
       status: 'success',
       message: `Cooldown Period is set to ${cooldown}`,
     };
+  }
+
+  @ApiOperation({ summary: '블랙리스트 추가 (관리자 전용)' })
+  @Post('ban')
+  async addBan(@Body('userId') userId: string) {
+    return this.adminService.setBan(userId);
+  }
+
+  @ApiOperation({ summary: '블랙리스트 전체 조회 (관리자 전용)' })
+  @Get('ban-all')
+  async getBanAll() {
+    return this.adminService.getBanUserAll();
+  }
+
+  @ApiOperation({ summary: '블랙리스트 삭제 (관리자 전용)' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        userId: { type: 'string' },
+      },
+    },
+  })
+  @Delete('ban')
+  async deleteBan(@Body('userId') userId: string) {
+    return this.adminService.deleteBanUser(userId);
   }
 }

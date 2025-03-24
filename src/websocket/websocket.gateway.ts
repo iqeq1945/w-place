@@ -28,6 +28,7 @@ interface PixelUpdate {
   perMessageDeflate: true, // 메시지 압축 활성화
   pingInterval: 25000, // ping 간격 설정 (25초)
   pingTimeout: 10000, // ping 타임아웃 설정 (10초)
+  transports: ['polling'],
 })
 export class WebsocketGateway
   implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
