@@ -21,14 +21,17 @@ export class AdminService {
   }
 
   async getBoard() {
+    this.logger.log('Fetching full board');
     return await this.boardService.getFullBoard();
   }
 
   async getSnapshotIds() {
+    this.logger.log('Fetching snapshot IDs');
     return await this.scyllaService.getSnapshotIds();
   }
 
   async getBoardBySnapshotId(snapshotId: string) {
+    this.logger.log(`Fetching board by snapshot ID: ${snapshotId}`);
     return await this.scyllaService.getBoardBySnapshotId(snapshotId);
   }
 
@@ -39,6 +42,9 @@ export class AdminService {
     userId?: string,
     pageState?: number,
   ) {
+    this.logger.log(
+      `Fetching pixel history at (${x}, ${y}) with limit ${limit}`,
+    );
     return await this.scyllaService.getPixelHistory(
       x,
       y,
@@ -49,18 +55,22 @@ export class AdminService {
   }
 
   async getPixelHistoryLength() {
+    this.logger.log('Fetching pixel history length');
     return await this.scyllaService.getPixelHistoryLength();
   }
 
   async getPixelHistoryAll() {
+    this.logger.log('Fetching all pixel history');
     return await this.scyllaService.getPixelHistoryAll();
   }
 
   async getUserCount() {
+    this.logger.log('Fetching user count');
     return this.websocketGateway.getUserCount();
   }
 
   async getBoardSize() {
+    this.logger.log('Fetching board size');
     return this.boardSize;
   }
 
@@ -68,23 +78,21 @@ export class AdminService {
   async initializeBoard(): Promise<void> {
     const exists = await this.redisService.getClient().exists('place:board');
     if (!exists) {
-      // 초기 보드는 모두 하얀색(0)으로 설정
       const totalSize = this.boardSize * this.boardSize;
       const initialBoard = Buffer.alloc(Math.ceil(totalSize));
       await this.redisService.getClient().set('place:board', initialBoard);
-      // 초기 보드 스냅샷 저장
       await this.scyllaService.saveBoardSnapshot(initialBoard);
       this.logger.log('Board initialized'); // 보드 초기화 로그
+    } else {
+      this.logger.warn('Board already exists, initialization skipped');
     }
   }
 
   // 보드 상태로 초기로 복구합니다.
   async resetBoard(): Promise<void> {
-    // 초기 보드는 모두 하얀색(0)으로 설정
     const totalSize = this.boardSize * this.boardSize;
     const initialBoard = Buffer.alloc(Math.ceil(totalSize));
     await this.redisService.getClient().set('place:board', initialBoard);
-    // 초기 보드 스냅샷 저장
     await this.scyllaService.saveBoardSnapshot(initialBoard);
     this.logger.log('Board reset'); // 보드 초기화 로그
   }
@@ -100,32 +108,68 @@ export class AdminService {
 
     await this.redisService.getClient().set('place:board', randomBoard);
     this.logger.log('Board Redis Random'); // 보드 초기화 로그
-    // 초기 보드 스냅샷 저장
     await this.scyllaService.saveBoardSnapshot(randomBoard);
     this.logger.log('Board Scylla Random'); // 보드 초기화 로그
   }
 
   async clearCache() {
+    this.logger.log('Clearing cache');
     await this.boardService.clearCache();
   }
 
   async getSnapshotCount(): Promise<number> {
+    this.logger.log('Fetching snapshot count');
     return await this.scyllaService.getSnapshotCount();
   }
 
   async setCooldownPeriod(cooldownPeriod: number): Promise<void> {
+    this.logger.log(`Setting cooldown period to ${cooldownPeriod}`);
     await this.boardService.setCooldownPeriod(cooldownPeriod);
   }
 
   async setBan(userId: string) {
+    this.logger.log(`Setting ban for user: ${userId}`);
     return await this.redisService.setBanUser(userId);
   }
 
   async getBanUserAll() {
+    this.logger.log('Fetching all banned users');
     return await this.redisService.getBanUserAll();
   }
 
   async deleteBanUser(userId: string) {
+    this.logger.log(`Deleting ban for user: ${userId}`);
     return await this.redisService.deleteBanUser(userId);
+  }
+
+  async setTileArea(
+    startX: number,
+    startY: number,
+    width: number,
+    height: number,
+  ) {
+    this.logger.log(
+      `Setting tile area from (${startX}, ${startY}) with size ${width}x${height}`,
+    );
+    const result = await this.redisService.setTileArea(
+      startX,
+      startY,
+      width,
+      height,
+    );
+
+    if (result) {
+      const adminUpdate = [];
+      for (let y = startY; y < startY + height; y++) {
+        for (let x = startX; x < startX + width; x++) {
+          adminUpdate.push({ x, y, colorIndex: 0 });
+        }
+      }
+      this.websocketGateway.broadcastAdminUpdate(adminUpdate);
+      this.logger.log(`Tile area set successfully from (${startX}, ${startY})`); // 성공 로그 추가
+    } else {
+      this.logger.warn(`Failed to set tile area from (${startX}, ${startY})`); // 실패 로그 추가
+    }
+    return result;
   }
 }

@@ -93,4 +93,27 @@ export class RedisService {
   async deleteBanUser(userId: string): Promise<boolean> {
     return (await this.redisClient.del(`ban:${userId}`)) === 1;
   }
+
+  // 특정 영역의 타일들을 한 번에 수정
+  async setTileArea(
+    startX: number,
+    startY: number,
+    width: number,
+    height: number,
+  ): Promise<boolean> {
+    const pipeline = this.redisClient.pipeline();
+
+    for (let y = startY; y < startY + height; y++) {
+      for (let x = startX; x < startX + width; x++) {
+        if (x >= 0 && x < this.boardSize && y >= 0 && y < this.boardSize) {
+          const offset = x + y * this.boardSize;
+          pipeline.bitfield(this.boardKey, 'SET', 'u8', `#${offset}`, 0);
+        }
+      }
+    }
+
+    const results = await pipeline.exec();
+
+    return results.every(([err]) => !err);
+  }
 }

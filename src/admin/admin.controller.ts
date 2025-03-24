@@ -220,4 +220,15 @@ export class AdminController {
   async deleteBan(@Body('userId') userId: string) {
     return this.adminService.deleteBanUser(userId);
   }
+
+  @ApiOperation({ summary: '타일 영역 설정 (관리자 전용)' })
+  @Post('set-area')
+  async setTileArea(
+    @Body('startX') startX: number,
+    @Body('startY') startY: number,
+    @Body('width') width: number,
+    @Body('height') height: number,
+  ) {
+    return this.adminService.setTileArea(startX, startY, width, height);
+  }
 }

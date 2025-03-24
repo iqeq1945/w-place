@@ -68,6 +68,11 @@ export class WebsocketGateway
     this.pixelUpdateQueue.push(pixelUpdate);
   }
 
+  // 브로드캐스트 admin 요청
+  broadcastAdminUpdate(adminUpdate: PixelUpdate[]) {
+    this.pixelUpdateQueue.push(...adminUpdate);
+  }
+
   // 일정 간격마다 모아서 한 번에 전송
   private flushPixelUpdates() {
     if (this.pixelUpdateQueue.length === 0) return;
