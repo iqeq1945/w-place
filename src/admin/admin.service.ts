@@ -162,7 +162,7 @@ export class AdminService {
       const adminUpdate = [];
       for (let y = startY; y < startY + height; y++) {
         for (let x = startX; x < startX + width; x++) {
-          adminUpdate.push({ x, y, colorIndex: 0 });
+          adminUpdate.push({ x, y, colorIndex: 33 });
         }
       }
       this.websocketGateway.broadcastAdminUpdate(adminUpdate);
