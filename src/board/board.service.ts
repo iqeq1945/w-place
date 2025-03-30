@@ -158,7 +158,9 @@ export class BoardService {
       throw new NotFoundException('Snapshot not found');
     }
 
-    await this.redisService.getClient().set('place:board', board);
+    await this.cacheManager.set('board', rollbackBoard, 60 * 1000);
+    await this.redisService.getClient().set('place:board', rollbackBoard);
+
     return;
   }
 
