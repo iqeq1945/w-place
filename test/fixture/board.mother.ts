@@ -1,5 +1,9 @@
+import * as process from 'node:process';
+
 export class BoardMother {
-  static create(boardSize: number): Buffer<ArrayBuffer> {
+  static createRandom(
+    boardSize = parseInt(process.env.BOARD_SIZE) || 610,
+  ): Buffer<ArrayBuffer> {
     const totalSize = boardSize * boardSize;
     const randomBoard = Buffer.alloc(Math.ceil(totalSize));
 

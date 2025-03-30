@@ -46,6 +46,10 @@ export class RedisService {
     return board;
   }
 
+  async setBoard(board: Buffer): Promise<void> {
+    await this.redisClient.set(this.boardKey, board);
+  }
+
   // 사용자의 마지막 타일 배치 시간 관리
   async setLastPlacement(
     userId: string,

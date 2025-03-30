@@ -5,17 +5,34 @@ import { ScyllaModule } from '../../src/scylla/scylla.module';
 import { RedisModule } from '../../src/redis/redis.module';
 import { WebsocketModule } from '../../src/websocket/websocket.module';
 import { ScyllaService } from '../../src/scylla/scylla.service';
-import { PixelHistoryMother } from '../fixture/pixel-history.mother';
 import { ConfigModule } from '@nestjs/config/dist/config.module';
 import { CacheModule } from '@nestjs/cache-manager/dist/cache.module';
 import { ConfigService } from '@nestjs/config/dist/config.service';
+import { NestApplication } from '@nestjs/core';
+import { JwtMother } from '../fixture/jwt.mother';
+import { BoardMother } from '../fixture/board.mother';
+import { RedisService } from '../../src/redis/redis.service';
+import { ByteUtility } from '../../src/common/utils/byte.utility';
+import { RequestMother } from '../fixture/request.mother';
+import * as request from 'supertest';
 
 describe('/admin e2e', () => {
+  let app: NestApplication;
   let scyllaFactory: ScyllaService;
+  let redisFactory: RedisService;
+
   beforeEach(async () => {
-    const moduleBuilder = await Test.createTestingModule({
+    const module = await Test.createTestingModule({
       imports: [
-        JwtModule.register({}),
+        JwtModule.registerAsync({
+          global: true,
+          imports: [ConfigModule],
+          useFactory: async (configService: ConfigService) => ({
+            secret: configService.get('JWT_SECRET'),
+            signOptions: { expiresIn: '8h' },
+          }),
+          inject: [ConfigService],
+        }),
         AdminModule,
         ScyllaModule,
         RedisModule,
@@ -33,18 +50,185 @@ describe('/admin e2e', () => {
       ],
     }).compile();
 
-    const app = moduleBuilder.createNestApplication();
+    app = module.createNestApplication();
     await app.init();
+
     scyllaFactory = app.get(ScyllaService);
+    redisFactory = app.get(RedisService);
+
+    // remove all keys
+    redisFactory.getClient().flushall();
   });
 
-  describe('/pixel-history-all', () => {
-    it('should return 200', async () => {
-      await scyllaFactory.batchInsertPixelHistory([
-        PixelHistoryMother.createPixelHistory(),
+  afterEach(async () => {
+    await app.close();
+  });
+
+  describe('GET /board', () => {});
+  describe('GET /board/:id', () => {});
+  describe('GET /snapshot-ids', () => {});
+  describe('GET /pixel-history (특정 픽셀 기록 조회)', () => {});
+  describe('GET /pixel-history-length', () => {});
+  describe('GET /pixel-history-all', () => {});
+  describe('GET /user-count', () => {});
+  describe('GET /snapshot-count', () => {});
+  describe('GET /board-size', () => {});
+  describe('POST /initialize', () => {});
+  describe('POST /reset', () => {
+    it('보드 초기화', async () => {
+      const token = JwtMother.create();
+      await redisFactory.setBoard(BoardMother.createRandom());
+
+      await RequestMother.createAdminRequest(app, {
+        url: '/admin/reset',
+        method: 'post',
+        token,
+      }).expect(201);
+
+      const response = await RequestMother.createAdminRequest(app, {
+        url: '/board',
+        method: 'get',
+        token,
+      }).expect(200);
+      const boardLength = ByteUtility.removeEmptyBytes(response.body).length;
+      expect(boardLength).toBe(0);
+    });
+  });
+  describe('POST /random', () => {});
+  describe('POST /cooldown', () => {
+    it('쿨다운 설정', async () => {
+      const userId = JwtMother.createUserId();
+      const cooldown = 1000;
+      await RequestMother.createAdminRequest(app, {
+        url: '/admin/cooldown',
+        method: 'post',
+        token: JwtMother.create(),
+      })
+        .send({ cooldown })
+        .expect(201);
+
+      await request(app.getHttpServer())
+        .post('/board/pixel')
+        .send({
+          x: 0,
+          y: 0,
+          colorIndex: 1,
+        })
+        .set('Authorization', `Bearer ${JwtMother.create({ sub: userId })}`)
+        .expect(201);
+      await request(app.getHttpServer())
+        .post('/board/pixel')
+        .send({
+          x: 0,
+          y: 0,
+          colorIndex: 2,
+        })
+        .set('Authorization', `Bearer ${JwtMother.create({ sub: userId })}`)
+        .expect(500);
+
+      const { body } = await request(app.getHttpServer())
+        .get(`/board/pixel?x=0&y=0`)
+        .expect(200);
+      expect(body.colorIndex).toBe(1);
+    });
+  });
+  describe('POST /ban', () => {
+    it('유저를 밴한다.', async () => {
+      const userId = JwtMother.createUserId();
+
+      await RequestMother.createAdminRequest(app, {
+        url: '/admin/ban',
+        method: 'post',
+        token: JwtMother.create({ sub: userId }),
+      })
+        .send({ userId })
+        .expect(201);
+
+      const isBanned = await redisFactory.getBanUser(userId);
+      expect(isBanned).toBeTruthy();
+    });
+  });
+  describe('GET /ban-all', () => {
+    it('밴된 유저를 조회한다.', async () => {
+      // given
+      const userId = JwtMother.createUserId();
+
+      await RequestMother.createAdminRequest(app, {
+        url: '/admin/ban',
+        method: 'post',
+        token: JwtMother.create({ sub: userId }),
+      })
+        .send({ userId })
+        .expect(201);
+
+      // when
+      const response = await RequestMother.createAdminRequest(app, {
+        url: '/admin/ban-all',
+        method: 'get',
+        token: JwtMother.create(),
+      }).expect(200);
+
+      // then
+      expect(response.body).toEqual([userId]);
+    });
+
+    it('밴된 유저들을 조회한다.', async () => {
+      // given
+      const userId1 = JwtMother.createUserId();
+      const userId2 = JwtMother.createUserId();
+      await Promise.all([
+        RequestMother.createAdminRequest(app, {
+          url: '/admin/ban',
+          method: 'post',
+          token: JwtMother.create({ sub: userId1 }),
+        })
+          .send({ userId: userId1 })
+          .expect(201),
+        RequestMother.createAdminRequest(app, {
+          url: '/admin/ban',
+          method: 'post',
+          token: JwtMother.create({ sub: userId2 }),
+        })
+          .send({ userId: userId2 })
+          .expect(201),
       ]);
 
-      expect(await scyllaFactory.getPixelHistoryAll()).toHaveLength(1);
+      // when
+      const response = await RequestMother.createAdminRequest(app, {
+        url: '/admin/ban-all',
+        method: 'get',
+        token: JwtMother.create(),
+      }).expect(200);
+
+      // then
+      expect(response.body).toContain(userId1);
+      expect(response.body).toContain(userId2);
+      expect(response.body).toHaveLength(2);
     });
+    describe('DELETE /ban', () => {
+      it('블랙리스트에서 삭제한다.', async () => {
+        // given
+        const userId = JwtMother.createUserId();
+
+        await RequestMother.createAdminRequest(app, {
+          url: '/admin/ban',
+          method: 'post',
+          token: JwtMother.create({ sub: userId }),
+        })
+          .send({ userId })
+          .expect(201);
+
+        // when
+        const response = await RequestMother.createAdminRequest(app, {
+          url: '/admin/ban-all',
+          method: 'get',
+          token: JwtMother.create(),
+        }).expect(200);
+
+        // then
+        expect(response.body).toEqual([userId]);
+      });
+    });
+    describe('POST /set-area', () => {});
   });
 });
