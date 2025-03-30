@@ -15,6 +15,9 @@ import { RedisService } from '../../src/redis/redis.service';
 import { ByteUtility } from '../../src/common/utils/byte.utility';
 import { RequestMother } from '../fixture/request.mother';
 import * as request from 'supertest';
+import { as } from '@faker-js/faker/dist/airline-CBNP41sR';
+import { faker } from '@faker-js/faker';
+import { SchemaObjectFactory } from '@nestjs/swagger/dist/services/schema-object-factory';
 
 describe('/admin e2e', () => {
   let app: NestApplication;
@@ -55,12 +58,11 @@ describe('/admin e2e', () => {
 
     scyllaFactory = app.get(ScyllaService);
     redisFactory = app.get(RedisService);
-
-    // remove all keys
-    redisFactory.getClient().flushall();
   });
 
   afterEach(async () => {
+    await redisFactory.getClient().flushall();
+    await scyllaFactory.flushTestDB();
     await app.close();
   });
 
@@ -230,5 +232,59 @@ describe('/admin e2e', () => {
       });
     });
     describe('POST /set-area', () => {});
+    describe('POST /rollback/:id', () => {
+      it('특정 스냅샷으로 롤백한다.', async () => {
+        // given
+        await scyllaFactory.saveBoardSnapshot(BoardMother.createRandom());
+        await scyllaFactory.saveBoardSnapshot(BoardMother.createRandom());
+        await redisFactory.setBoard(BoardMother.createRandom());
+
+        const snapshots = await scyllaFactory.getSnapshotIds();
+        const rollbackPointSnapshotId = snapshots[0].snapshotId;
+
+        // when
+        await RequestMother.createAdminRequest(app, {
+          url: `/admin/rollback/${rollbackPointSnapshotId}`,
+          method: 'post',
+          token: JwtMother.create(),
+        }).expect(201);
+
+        // then
+        const [rollbackBoard, currentBoard] = await Promise.all([
+          scyllaFactory.getBoardBySnapshotId(rollbackPointSnapshotId),
+          redisFactory.getFullBoard(),
+        ]);
+
+        expect(currentBoard).toStrictEqual(rollbackBoard);
+      });
+
+      it('롤백 직전에 스냅샷을 저장한다.', async () => {
+        // given
+        await scyllaFactory.saveBoardSnapshot(BoardMother.createRandom());
+        await scyllaFactory.saveBoardSnapshot(BoardMother.createRandom());
+
+        const expectLastSnapshot = BoardMother.createRandom();
+        await redisFactory.setBoard(expectLastSnapshot);
+
+        const snapshots = await scyllaFactory.getSnapshotIds();
+        const rollbackPointSnapshotId = snapshots[0].snapshotId;
+
+        // when
+        await RequestMother.createAdminRequest(app, {
+          url: `/admin/rollback/${rollbackPointSnapshotId}`,
+          method: 'post',
+          token: JwtMother.create(),
+        }).expect(201);
+
+        // then
+        const snapshotIds = await scyllaFactory.getSnapshotIds();
+        const lastSnapshot = await scyllaFactory.getBoardBySnapshotId(
+          snapshotIds[snapshotIds.length - 1].snapshotId,
+        );
+
+        expect(snapshotIds).toHaveLength(3);
+        expect(expectLastSnapshot).toStrictEqual(lastSnapshot);
+      });
+    });
   });
 });

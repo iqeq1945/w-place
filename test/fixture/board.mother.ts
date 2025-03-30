@@ -1,4 +1,6 @@
 import * as process from 'node:process';
+import { BoardSnapshot } from '../../src/scylla/interfaces/scylla.interface';
+import { types } from 'cassandra-driver';
 
 export class BoardMother {
   static createRandom(
@@ -11,6 +13,15 @@ export class BoardMother {
       randomBoard[i] = Math.floor(Math.random() * 32);
     }
     return randomBoard;
+  }
+
+  static createSnapshot(): BoardSnapshot {
+    return {
+      boardId: types.Uuid.random(),
+      snapshotId: types.TimeUuid.now(),
+      timestamp: new Date(),
+      board: this.createRandom(),
+    };
   }
 
   static createEmpty() {
