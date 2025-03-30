@@ -146,17 +146,16 @@ export class BoardService {
   }
 
   async rollbackBoard(id: string) {
-    const board = await this.scyllaService.getBoardBySnapshotId(id);
-    if (!board) {
-      this.logger.warn(`Snapshot ID ${id} not found`);
-      throw new NotFoundException('Snapshot not found');
-    }
     const currentBoard = await this.redisService.getFullBoard();
     if (currentBoard) {
       await this.scyllaService.saveBoardSnapshot(currentBoard);
-      this.logger.log('Board synced to ScyllaDB'); // 동기화 로그
-    } else {
-      this.logger.log('Board is not existed');
+      this.logger.log('Current board snapshot saved');
+    }
+
+    const rollbackBoard = await this.scyllaService.getBoardBySnapshotId(id);
+    if (!rollbackBoard) {
+      this.logger.warn(`Snapshot ID ${id} not found`);
+      throw new NotFoundException('Snapshot not found');
     }
 
     await this.redisService.getClient().set('place:board', board);
