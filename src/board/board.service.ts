@@ -160,6 +160,7 @@ export class BoardService {
 
     await this.cacheManager.set('board', rollbackBoard, 60 * 1000);
     await this.redisService.getClient().set('place:board', rollbackBoard);
+    this.websocketGateway.flushBoard(rollbackBoard);
 
     return;
   }
