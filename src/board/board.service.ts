@@ -1,5 +1,5 @@
 // board.service.ts
-import { Injectable, Inject, Logger } from '@nestjs/common';
+import { Injectable, Inject, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { RedisService } from '../redis/redis.service';
 import { WebsocketGateway } from '../websocket/websocket.gateway';
@@ -143,6 +143,26 @@ export class BoardService {
   async clearCache() {
     await this.cacheManager.clear();
     this.logger.log('Board Cache Clear'); // 캐시 초기화 로그
+  }
+
+  async rollbackBoard(id: string) {
+    const currentBoard = await this.redisService.getFullBoard();
+    if (currentBoard) {
+      await this.scyllaService.saveBoardSnapshot(currentBoard);
+      this.logger.log('Current board snapshot saved');
+    }
+
+    const rollbackBoard = await this.scyllaService.getBoardBySnapshotId(id);
+    if (!rollbackBoard) {
+      this.logger.warn(`Snapshot ID ${id} not found`);
+      throw new NotFoundException('Snapshot not found');
+    }
+
+    await this.cacheManager.set('board', rollbackBoard, 60 * 1000);
+    await this.redisService.getClient().set('place:board', rollbackBoard);
+    this.websocketGateway.flushBoard(rollbackBoard);
+
+    return;
   }
 
   async test() {

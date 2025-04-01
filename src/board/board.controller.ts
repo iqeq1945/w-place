@@ -82,6 +82,7 @@ export class BoardController {
 
     return res.json(tileInfo);
   }
+
   @ApiOperation({ summary: '픽셀 배치' })
   @ApiBody({ type: BodyPixelDto })
   @ApiBearerAuth()

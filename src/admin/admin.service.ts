@@ -1,4 +1,4 @@
-import { Logger, Injectable } from '@nestjs/common';
+import { Logger, Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { BoardService } from 'src/board/board.service';
 import { RedisService } from 'src/redis/redis.service';
@@ -162,7 +162,7 @@ export class AdminService {
       const adminUpdate = [];
       for (let y = startY; y < startY + height; y++) {
         for (let x = startX; x < startX + width; x++) {
-          adminUpdate.push({ x, y, colorIndex: 0 });
+          adminUpdate.push({ x, y, colorIndex: 33 });
         }
       }
       this.websocketGateway.broadcastAdminUpdate(adminUpdate);
@@ -171,5 +171,11 @@ export class AdminService {
       this.logger.warn(`Failed to set tile area from (${startX}, ${startY})`); // 실패 로그 추가
     }
     return result;
+  }
+
+  async rollbackBoard(id: string): Promise<void> {
+    this.logger.log(`Rolling back board to snapshot ID: ${id}`);
+    await this.boardService.rollbackBoard(id);
+    this.logger.log(`Board rollback to snapshot ID: ${id}`);
   }
 }

@@ -163,6 +163,21 @@ export class AdminController {
     return res.json({ status: 'success', message: 'Board Reset' });
   }
 
+  @ApiOperation({
+    summary: '보드 롤백 (관리자 전용)',
+    description:
+      '특정 시점의 보드를 최신에 복제합니다. git의 cherry-pick을 통한 롤백과 동일합니다.',
+  })
+  @Post('rollback/:id')
+  async revertBoard(
+    @Param('id') id: string,
+    @CurrentUser() user,
+    @Res() res: Response,
+  ) {
+    await this.adminService.rollbackBoard(id);
+    return res.json({ status: 'success', message: 'Board Rollback' });
+  }
+
   @ApiOperation({ summary: '보드 랜덤 초기화 (관리자 전용)' })
   @Post('random')
   async randomBoard(@CurrentUser() user, @Res() res: Response) {

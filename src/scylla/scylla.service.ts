@@ -316,4 +316,12 @@ export class ScyllaService implements OnModuleInit, OnModuleDestroy {
       throw error;
     }
   }
+
+  /**
+   * 테스트 시에만 사용하는 메서드
+   */
+  async flushTestDB() {
+    await this.client.execute('TRUNCATE test_place.pixel_history');
+    await this.client.execute('TRUNCATE test_place.board_snapshots');
+  }
 }

@@ -73,6 +73,15 @@ export class WebsocketGateway
     this.pixelUpdateQueue.push(...adminUpdate);
   }
 
+  flushBoard(buffer: Buffer) {
+    const packedData = new Uint8Array(buffer);
+
+    this.logger.log(`Board Changed By Buffer`);
+    this.server.emit('boardUpdate', packedData);
+
+    this.pixelUpdateQueue = []; // 전송 후 큐 초기화
+  }
+
   // 일정 간격마다 모아서 한 번에 전송
   private flushPixelUpdates() {
     if (this.pixelUpdateQueue.length === 0) return;
