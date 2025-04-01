@@ -224,7 +224,12 @@ export class ScyllaService implements OnModuleInit, OnModuleDestroy {
   }
 
   async getPixelHistoryAll(limit: number = 100): Promise<PixelHistory[]> {
-    const result = await this.pixelHistoryMapper.findAll({ limit });
+    const result = await this.pixelHistoryMapper.findAll({
+      limit,
+      orderBy: {
+        historyId: 'DESC',
+      },
+    });
     return result.toArray();
   }
 
