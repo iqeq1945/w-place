@@ -242,13 +242,7 @@ export class ScyllaService implements OnModuleInit, OnModuleDestroy {
         pageState,
       });
 
-      allRows = allRows.concat(
-        result.rows.map((row) => {
-          const obj: any = {};
-          row.keys().forEach((key) => (obj[key] = row.get(key)));
-          return obj;
-        }),
-      );
+      allRows = allRows.concat(result.rows);
 
       this.logger.log(
         `페이지 ${pageCount} 완료: ${result.rows.length}개 행 추가됨`,
