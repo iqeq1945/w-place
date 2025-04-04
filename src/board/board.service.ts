@@ -176,8 +176,9 @@ export class BoardService {
   }
 
   // 주기적으로 Redis의 place:board 값을 ScyllaDB에 저장하는 메서드
-  @Cron('*/1 * * * *') // 1분마다 실행
-  private async syncBoardToScylla() {
+
+  //@Cron('*/1 * * * *') // 1분마다 실행
+  /* private async syncBoardToScylla() {
     try {
       this.logger.log('Start Syncing to ScyllaDB'); // 동기화 로그
 
@@ -194,4 +195,5 @@ export class BoardService {
       this.logger.error(`Error syncing board to ScyllaDB: ${error.message}`); // 오류 로그
     }
   }
+  */
 }
