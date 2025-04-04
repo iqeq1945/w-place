@@ -224,23 +224,40 @@ export class ScyllaService implements OnModuleInit, OnModuleDestroy {
   }
 
   async getPixelHistoryAll(limit: number = 100): Promise<PixelHistory[]> {
-    const result = await this.pixelHistoryMapper.findAll({
-      limit,
-      orderBy: {
-        historyId: 'DESC',
-      },
-    });
+    const result = await this.pixelHistoryMapper.findAll({ limit });
     return result.toArray();
   }
 
-  async executeQuery(query: string): Promise<Array<unknown>> {
-    const result = await this.client.execute(query);
+  async executeQuery(query: string): Promise<any[]> {
+    let allRows: any[] = [];
+    let pageState: string | undefined;
+    let pageCount = 0;
 
-    if (result.rowLength === 0) {
-      return [];
-    }
+    do {
+      pageCount++;
+      this.logger.log(`쿼리 실행 중... (페이지 ${pageCount})`);
 
-    return result.rows;
+      const result = await this.client.execute(query, [], {
+        prepare: true,
+        pageState,
+      });
+
+      allRows = allRows.concat(
+        result.rows.map((row) => {
+          const obj: any = {};
+          row.keys().forEach((key) => (obj[key] = row.get(key)));
+          return obj;
+        }),
+      );
+
+      this.logger.log(
+        `페이지 ${pageCount} 완료: ${result.rows.length}개 행 추가됨`,
+      );
+      pageState = result.pageState;
+    } while (pageState);
+
+    this.logger.log(`쿼리 완료: 총 ${allRows.length}개 행 반환됨`);
+    return allRows;
   }
 
   // Get the client for custom queries
@@ -315,13 +332,5 @@ export class ScyllaService implements OnModuleInit, OnModuleDestroy {
       console.error('스냅샷 개수 조회 중 오류:', error);
       throw error;
     }
-  }
-
-  /**
-   * 테스트 시에만 사용하는 메서드
-   */
-  async flushTestDB() {
-    await this.client.execute('TRUNCATE test_place.pixel_history');
-    await this.client.execute('TRUNCATE test_place.board_snapshots');
   }
 }
