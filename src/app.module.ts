@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { BoardModule } from './board/board.module';
-import { WakgamesModule } from './wakgames/wakgames.module';
+import { OauthModule } from './oauth/oauth.module';
 import { WebsocketModule } from './websocket/websocket.module';
 import { RedisModule } from './redis/redis.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
@@ -36,7 +36,7 @@ import { CacheModule } from '@nestjs/cache-manager';
     }),
     RedisModule,
     BoardModule,
-    WakgamesModule,
+    OauthModule,
     WebsocketModule,
     ScyllaModule,
     ScheduleModule.forRoot(),

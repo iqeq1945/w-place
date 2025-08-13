@@ -5,7 +5,7 @@ import { WakGames } from '@wakgames/backend-sdk';
 type grantType = 'authorization_code';
 
 @Injectable()
-export class WakgamesService extends WakGames {
+export class OauthService extends WakGames {
   constructor(private readonly configService: ConfigService) {
     super({
       clientId: configService.get<string>('CLIENT_ID'),

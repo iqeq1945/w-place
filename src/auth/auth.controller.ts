@@ -16,8 +16,8 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @ApiOperation({
-    summary: 'waktaver games oauth',
-    description: '반한되는 정보의 url로 이동하여 로그인 진행',
+    summary: 'oauth',
+    description: '인증 URL로 이동하여 로그인 진행',
   })
   @Get()
   async waktaOauth() {
@@ -25,8 +25,8 @@ export class AuthController {
   }
 
   @ApiOperation({
-    summary: 'waktaver games oauth callback',
-    description: '로그인 성공시 user 정보와 token 정보를 줌',
+    summary: 'oauth callback',
+    description: '로그인 성공 시 사용자 정보와 토큰 정보를 반환',
   })
   @ApiQuery({
     name: 'code',

@@ -228,7 +228,7 @@ export class ScyllaService implements OnModuleInit, OnModuleDestroy {
     return result.toArray();
   }
 
-  async executeQuery(query: string): Promise<any[]> {
+  async executeQuery(query: string, pageSize: number = 1000): Promise<any[]> {
     let allRows: any[] = [];
     let pageState: string | undefined;
     let pageCount = 0;

@@ -1,6 +1,6 @@
 import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { WakgamesService } from 'src/wakgames/wakgames.service';
+import { OauthService } from 'src/oauth/oauth.service';
 import { RedisService } from 'src/redis/redis.service';
 
 @Injectable()
@@ -8,20 +8,17 @@ export class AuthService {
   private readonly logger = new Logger(AuthService.name);
 
   constructor(
-    private readonly wakgamesService: WakgamesService,
+    private readonly oauthService: OauthService,
     private readonly jwtService: JwtService,
     private readonly redisService: RedisService,
   ) {}
 
   async waktaOauth() {
-    return this.wakgamesService.getAuth();
+    return this.oauthService.getAuth();
   }
 
   async waktaLogin(code: string, codeVerifier: string) {
-    const tokenResponse = await this.wakgamesService.getToken(
-      code,
-      codeVerifier,
-    );
+    const tokenResponse = await this.oauthService.getToken(code, codeVerifier);
 
     if (!tokenResponse.data) {
       throw new UnauthorizedException('OAuth 인증에 실패했습니다');
@@ -29,7 +26,7 @@ export class AuthService {
 
     const { accessToken } = tokenResponse.data;
 
-    const profileResponse = await this.wakgamesService.getProfile(accessToken);
+    const profileResponse = await this.oauthService.getProfile(accessToken);
 
     if (!profileResponse.data) {
       throw new UnauthorizedException('Profile 정보획득 실패');
